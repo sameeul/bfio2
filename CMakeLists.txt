@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.18)
-#set(CMAKE_VERBOSE_MAKEFILE ON)
 project(libbfio2 LANGUAGES CXX)
 set(CMAKE_DEBUG_POSTFIX d)
 set (CMAKE_CXX_STANDARD 17)
