@@ -1,4 +1,4 @@
-import libbfio2
+from .libbfio2 import OmeTiffLoader
 import numpy
 
 class BioReader:
@@ -6,7 +6,7 @@ class BioReader:
         self._file_name = file_name
         self._DIMS = {}
         if file_name.endswith('.ome.tif'):
-            self._image_reader = libbfio2.OmeTiffLoader(file_name)
+            self._image_reader = OmeTiffLoader(file_name)
             self._meta_data = self.get_xml_metadata()
             self._image_height = self._image_reader.get_image_height()
             self._image_width = self._image_reader.get_image_width()
@@ -66,8 +66,6 @@ class BioReader:
 
     def __getitem__(self, keys):
         slice_items = (self._parse_slice(keys))
-        print(keys)
-        print(slice_items)
         X = self._val_xyz(slice_items['X'], 'X')
         Y = self._val_xyz(slice_items['Y'], 'Y')
 
@@ -180,7 +178,6 @@ class BioReader:
     
     def _val_xyz(self, xyz, axis):
         assert axis in 'XY'
-        print(xyz)
         if xyz == None:
             xyz = [0,self._DIMS[axis]-1]
         else:

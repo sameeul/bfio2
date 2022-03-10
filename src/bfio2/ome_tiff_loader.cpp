@@ -23,9 +23,8 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fNameWithPath){
 		else 
 		{
 			// since the file is not tiled, we provide the tile dimensions
-			auto tileDims = calculateTileDimensions(fNameWithPath); //vector of (tw, th, td)
-            gsTiffTileLoader = std::make_unique<GrayscaleTiffStripLoader<uint32_t>>(nThreads, fNameWithPath, tileDims->at(0), 
-																						tileDims->at(1), tileDims->at(2));
+			auto [tw, th, td]  = calculateTileDimensions(fNameWithPath); //vector of (tw, th, td)
+            gsTiffTileLoader = std::make_unique<GrayscaleTiffStripLoader<uint32_t>>(nThreads, fNameWithPath, tw, th, td);
 		}
 };
 
@@ -49,33 +48,31 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::getTileData(size_t const i
     return tileData;
 }
 
-std::unique_ptr<std::vector<size_t>>  OmeTiffLoader::getImageDimensions  (const std::string& filePath) const
+std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::getImageDimensions  (const std::string& filePath) const
 {
 	TIFF *tiff_ = TIFFOpen(filePath.c_str(), "r");
 	if (tiff_ != nullptr) 
 	{
-		std::unique_ptr<std::vector<size_t>> imageDims = std::make_unique<std::vector<size_t>>(0);
-		size_t tmp = 0;
-		TIFFGetField(tiff_, TIFFTAG_IMAGEWIDTH, &tmp);
-		imageDims->push_back(tmp);
-      	TIFFGetField(tiff_, TIFFTAG_IMAGELENGTH, &tmp);
-		imageDims->push_back(tmp);
-		imageDims->push_back(TIFFNumberOfDirectories(tiff_));
-	   	TIFFClose(tiff_);
-	  	return std::move(imageDims);	
-	} else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
+		uint32_t w, l, ndirs;
+		TIFFGetField(tiff_, TIFFTAG_IMAGEWIDTH, &w);
+		TIFFGetField(tiff_, TIFFTAG_IMAGELENGTH, &l);
+		ndirs = TIFFNumberOfDirectories(tiff_);
+		TIFFClose(tiff_);
+		return {w, l, ndirs};	
+	} 
+	else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
 }
 
-std::unique_ptr<std::vector<size_t>>  OmeTiffLoader::calculateTileDimensions(const std::string& filePath) const
+std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::calculateTileDimensions(const std::string& filePath) const
 {
-	auto imageDims = getImageDimensions(filePath);
-	size_t defaultWidthSize = 1024;
-	size_t defaultHeightSize = 1024;
-	size_t defaultDepthSize = 1;
-	imageDims->at(0) = std::min({imageDims->at(0), defaultWidthSize});
-	imageDims->at(1) = std::min({imageDims->at(1), defaultHeightSize});
-	imageDims->at(2) = std::min({imageDims->at(2), defaultDepthSize});
-	return std::move(imageDims);
+	auto [w, h, d] = getImageDimensions(filePath);
+	uint32_t defaultWidthSize = 1024;
+	uint32_t defaultHeightSize = 1024;
+	uint32_t defaultDepthSize = 1;
+	w = std::min ({ w, defaultWidthSize });
+	h = std::min ({ h, defaultHeightSize });
+	d = std::min ({ d, defaultDepthSize });
+	return {w, h, d};
 }
 
 bool OmeTiffLoader::checkTileStatus(const std::string& filePath) const
@@ -106,18 +103,6 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::getTileData(size_t const i
     gsTiffTileLoader->loadTileFromFile(tileData, indexRowGlobalTile, indexColGlobalTile, 0, 0);
     return tileData;
 }
-
-std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::getTileDataContainingPixel(size_t const indexRowPixel, size_t const indexColPixel)
-{
-	size_t th = getTileHeight();	
-	size_t tw = getTileWidth();
-	size_t indexRowGlobalTile = indexRowPixel/th;
-	size_t indexColGlobalTile = indexColPixel/tw;
-    std::shared_ptr<std::vector<uint32_t>> tileData = std::make_shared<std::vector<uint32_t>>(tw * th);
-    gsTiffTileLoader->loadTileFromFile(tileData, indexRowGlobalTile, indexColGlobalTile, 0, 0);
-    return tileData;
-}
-
 
 std::pair<size_t, size_t> OmeTiffLoader::getTileContainingPixel(size_t const indexRowPixel, size_t const indexColPixel)
 {

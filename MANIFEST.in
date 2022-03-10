@@ -1,0 +1,2 @@
+include versioneer.py
+include src/bfio2/python/_version.py
