@@ -1,1 +1,1 @@
-src/bfio2/python/_version.py export-subst
+src/bfio2/python/bfio2/_version.py export-subst

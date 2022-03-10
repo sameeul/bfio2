@@ -4,7 +4,6 @@ set(CMAKE_DEBUG_POSTFIX d)
 set (CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
 #OpenMP
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -16,27 +15,13 @@ else()
 	message(STATUS "OpenMP Not Found")
 endif()
 
-
 # PyBind
-find_package(Python COMPONENTS Interpreter Development)
 add_subdirectory(lib/pybind11)
-
-if (Python_FOUND OR Python_INCLUDE_DIRS)
-	add_compile_definitions(WITH_PYTHON_H)
-endif()
-
-
 include_directories(
 	lib/pybind11/include/
-	${Python_INCLUDE_DIRS}
 )
 
-message(STATUS "PYTHON HEADERS: ${Python_INCLUDE_DIRS}")
-
-#set(THREADS_PREFER_PTHREAD_FLAG ON)
-#find_package(Threads REQUIRED)
-
-
+# Release Type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()

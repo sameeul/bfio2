@@ -7,7 +7,7 @@ class BioReader:
         self._DIMS = {}
         if file_name.endswith('.ome.tif'):
             self._image_reader = OmeTiffLoader(file_name)
-            self._meta_data = self.get_xml_metadata()
+            self._metadata = None
             self._image_height = self._image_reader.get_image_height()
             self._image_width = self._image_reader.get_image_width()
             self._DIMS['Y'] = self._image_height
@@ -15,8 +15,13 @@ class BioReader:
         else:
             raise TypeError("Only OMETiff file format is supported")
 
+    def parse_xml_metadata(self):
+        if self._metadata == None:
+            self._metadata = self._image_reader.get_xml_metadata()
+
     def get_xml_metadata(self):
-        return self._image_reader.get_xml_metadata()
+        self.parse_xml_metadata()
+        return self._metadata
     
     def get_tile_data(self, row=None, col=None):
         if col != None:
@@ -46,20 +51,24 @@ class BioReader:
         pass
 
     def get_physical_size_x(self):
-        return self._meta_data.get("PhysicalSizeX", "") + self._meta_data.get("PhysicalSizeXUnit", "")
+        self.parse_xml_metadata()
+        return self._metadata.get("PhysicalSizeX", "") + self._metadata.get("PhysicalSizeXUnit", "")
 
     def get_physical_size_y(self):
-        return self._meta_data.get("PhysicalSizeY", "") + self._meta_data.get("PhysicalSizeYUnit", "")
+        self.parse_xml_metadata()
+        return self._metadata.get("PhysicalSizeY", "") + self._metadata.get("PhysicalSizeYUnit", "")
 
     def get_physical_size_z(self):
         pass
     
     def samples_per_pixel(self):
         #check how to do it for multi channel 
-        return int(self._meta_data.get("SamplesPerPixel", "0"))
+        self.parse_xml_metadata()
+        return int(self._metadata.get("SamplesPerPixel", "0"))
 
     def bits_per_sample(self):
-        return int(self._meta_data.get("BitsPerSample", "0"))
+        self.parse_xml_metadata()
+        return int(self._metadata.get("BitsPerSample", "0"))
     
     def bytes_per_pixel(self):
         return self.bits_per_sample()*self.samples_per_pixel/8
@@ -93,7 +102,7 @@ class BioReader:
     def _parse_slice(self,keys):
         
         # Dimension ordering and index initialization
-        dims = 'YXZCT'
+        dims = 'YX'
         ind = {d:None for d in dims}
         
         # If an empty slice, load the whole image
@@ -107,9 +116,9 @@ class BioReader:
         # If not an empty slice, parse the key tuple
         else:
             
-            # At most, 5 indices can be indicated
-            if len(keys) > 5:
-                raise ValueError('Found {} indices, but at most 5 indices may be supplied.'.format(len(keys)))
+            # At most, 2 indices can be indicated
+            if len(keys) > 2:
+                raise ValueError('Found {} indices, but at most 2 indices may be supplied.'.format(len(keys)))
             
             # If the first key is an ellipsis, read backwards
             if keys[0] == Ellipsis:
@@ -129,12 +138,7 @@ class BioReader:
                     stop = getattr(self,dim) if key.stop == None else key.stop
                     
                     # For CT dimensions, generate a list from slices
-                    if dim in 'CT':
-                        step = 1 if key.step is None else key.step
-                        ind[dim] = list(range(start,stop,step))
-                    
-                    # For XYZ dimensions, get start and stop of slice, ignore step
-                    else:
+                    if dim in 'XY':
                         step = 1 if key.step is None else key.step
                         stop = min(self._DIMS[dim]-1, key.stop)
                         ind[dim] = [start,stop, step]
@@ -145,15 +149,9 @@ class BioReader:
                     
                 elif isinstance(key,(int,tuple,list)) or numpy.issubdtype(key,numpy.integer):
                     # Only the last three dimensions can use int, tuple, or list indexing
-                    if dim in 'CT':
+                    if dim in 'XY':
                         if isinstance(key,int) or numpy.issubdtype(key,numpy.integer):
-                            ind[dim] = [key]
-                            if dim == 'Z':
-                                ind[dim].append(ind[dim][0]+1)
-                        else:
-                            ind[dim] = key
-                    elif isinstance(key,int) or numpy.issubdtype(key,numpy.integer):
-                        ind[dim] = [int(key),int(key)+1]
+                            ind[dim] = [int(key),int(key)+1]
                     else:
                         raise ValueError('The index in position {} must be a slice type.'.format(dims.find(dim)))
                 else:
@@ -181,8 +179,6 @@ class BioReader:
         if xyz == None:
             xyz = [0,self._DIMS[axis]-1]
         else:
-            if axis=='Z' and isinstance(xyz,int):
-                xyz = [xyz,xyz+1]
             assert len(xyz) == 2 or len(xyz) == 3, \
                 '{} must be a list or tuple of length 2 or 3.'.format(axis)
             assert xyz[0] >= 0, \
@@ -191,3 +187,18 @@ class BioReader:
                 '{}[1] cannot be greater than the maximum of the dimension ({}).'.format(axis,self._DIMS[axis])
                 
         return xyz
+
+    def close(self):
+        # need to figure out what to do with
+        # OMETiff object
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __del__(self):
+        self.close()
+        
+
+    def __exit__(self, type_class, value, traceback):
+        self.close()

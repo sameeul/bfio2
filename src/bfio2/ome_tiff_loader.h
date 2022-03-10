@@ -5,21 +5,23 @@
 #include <fast_loader/specialised_tile_loader/grayscale_tiff_strip_loader.h>
 #include <fast_loader/specialised_tile_loader/grayscale_tiff_tile_loader.h>
 #include <omp.h>
-#include "../../lib/pugixml/pugixml.hpp"
+#include <pugixml.hpp>
 
 class OmeTiffLoader{
 
     private:
         std::unique_ptr<fl::AbstractTileLoader<fl::DefaultView<uint32_t>>> gsTiffTileLoader;
         std::shared_ptr<std::map<std::string, std::string>> xml_metadata_ptr;
-        size_t nThreads = 1;
-        std::string fNameWithPath = "";
-        std::tuple<uint32_t, uint32_t, uint32_t>  getImageDimensions(const std::string& filePath) const;
-        std::tuple<uint32_t, uint32_t, uint32_t>  calculateTileDimensions(const std::string& filePath) const;
-	    bool checkTileStatus(const std::string& filePath) const;
-        std::pair<size_t, size_t> getTileContainingPixel(size_t const indexRowPixel, size_t const indexColPixel);
-        void parse_metadata(const std::string& filePath);
+        size_t nThreads;
+        std::string fName;
         
+        std::tuple<uint32_t, uint32_t, uint32_t>  getImageDimensions() const;
+        std::tuple<uint32_t, uint32_t, uint32_t>  calculateTileDimensions() const;
+        bool checkTileStatus() const;
+        std::pair<size_t, size_t> getTileContainingPixel(size_t const indexRowPixel, size_t const indexColPixel) const;
+        void parse_metadata();
+        size_t adjustStride (size_t startPos, size_t currentPos, size_t strideVal) const;
+
     public:
         OmeTiffLoader(const std::string &fNameWithPath);
         ~OmeTiffLoader();

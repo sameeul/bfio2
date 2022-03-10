@@ -1,30 +1,21 @@
 #include "ome_tiff_loader.h"
 
-size_t adjustStride (size_t startPos, size_t currentPos, size_t strideVal){
-	if (strideVal == 0) return currentPos; // guard against div by 0
 
-	size_t tmp = currentPos-startPos;
-	if (tmp%strideVal == 0) 
-	{
-		return currentPos; // no adjustment needed
-	} else 
-	{
-		return ((tmp/strideVal)+1)*strideVal; // move to the next eligible position
-	}
-}
-
-OmeTiffLoader::OmeTiffLoader(const std::string &fNameWithPath){
-	parse_metadata(fNameWithPath);
-
-    if (checkTileStatus(fNameWithPath))
+OmeTiffLoader::OmeTiffLoader(const std::string &fNameWithPath) : 
+	xml_metadata_ptr(nullptr),
+	gsTiffTileLoader(nullptr),
+	fName(fNameWithPath),
+	nThreads(1)
+{
+    if (checkTileStatus())
 		{
-			gsTiffTileLoader = std::make_unique<GrayscaleTiffTileLoader<uint32_t>>(nThreads, fNameWithPath);
+			gsTiffTileLoader = std::make_unique<GrayscaleTiffTileLoader<uint32_t>>(nThreads, fName);
 		} 
 		else 
 		{
 			// since the file is not tiled, we provide the tile dimensions
-			auto [tw, th, td]  = calculateTileDimensions(fNameWithPath); //vector of (tw, th, td)
-            gsTiffTileLoader = std::make_unique<GrayscaleTiffStripLoader<uint32_t>>(nThreads, fNameWithPath, tw, th, td);
+			auto [tw, th, td]  = calculateTileDimensions(); //vector of (tw, th, td)
+            gsTiffTileLoader = std::make_unique<GrayscaleTiffStripLoader<uint32_t>>(nThreads, fName, tw, th, td);
 		}
 };
 
@@ -48,9 +39,9 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::getTileData(size_t const i
     return tileData;
 }
 
-std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::getImageDimensions  (const std::string& filePath) const
+std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::getImageDimensions  () const
 {
-	TIFF *tiff_ = TIFFOpen(filePath.c_str(), "r");
+	TIFF *tiff_ = TIFFOpen(fName.c_str(), "r");
 	if (tiff_ != nullptr) 
 	{
 		uint32_t w, l, ndirs;
@@ -63,9 +54,9 @@ std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::getImageDimensions  (co
 	else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
 }
 
-std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::calculateTileDimensions(const std::string& filePath) const
+std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::calculateTileDimensions() const
 {
-	auto [w, h, d] = getImageDimensions(filePath);
+	auto [w, h, d] = getImageDimensions();
 	uint32_t defaultWidthSize = 1024;
 	uint32_t defaultHeightSize = 1024;
 	uint32_t defaultDepthSize = 1;
@@ -75,9 +66,9 @@ std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::calculateTileDimensions
 	return {w, h, d};
 }
 
-bool OmeTiffLoader::checkTileStatus(const std::string& filePath) const
+bool OmeTiffLoader::checkTileStatus() const
 {
-	TIFF *tiff_ = TIFFOpen(filePath.c_str(), "r");
+	TIFF *tiff_ = TIFFOpen(fName.c_str(), "r");
 	if (tiff_ != nullptr) 
 	{
 		if (TIFFIsTiled(tiff_) == 0) 
@@ -104,7 +95,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::getTileData(size_t const i
     return tileData;
 }
 
-std::pair<size_t, size_t> OmeTiffLoader::getTileContainingPixel(size_t const indexRowPixel, size_t const indexColPixel)
+std::pair<size_t, size_t> OmeTiffLoader::getTileContainingPixel(size_t const indexRowPixel, size_t const indexColPixel) const
 {
 	size_t th = getTileHeight();	
 	size_t tw = getTileWidth();
@@ -251,9 +242,8 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::getBoundingBoxVirtualTileD
 	return virtualTileData;
 }
 
-void OmeTiffLoader::parse_metadata(const std::string &fName){
-	
-
+void OmeTiffLoader::parse_metadata()
+{	
 	TIFF *tiff_ = TIFFOpen(fName.c_str(), "r");
 	if (tiff_ != nullptr) 
 	{
@@ -292,5 +282,23 @@ void OmeTiffLoader::parse_metadata(const std::string &fName){
 
 std::shared_ptr<std::map<std::string, std::string>> OmeTiffLoader::get_xml_metadata()
 {
+	if (xml_metadata_ptr == nullptr){
+		parse_metadata();		
+	}
 	return xml_metadata_ptr;
+
+}
+
+size_t OmeTiffLoader::adjustStride (size_t startPos, size_t currentPos, size_t strideVal) const
+{
+	if (strideVal == 0) return currentPos; // guard against div by 0
+
+	size_t tmp = currentPos-startPos;
+	if (tmp%strideVal == 0) 
+	{
+		return currentPos; // no adjustment needed
+	} else 
+	{
+		return ((tmp/strideVal)+1)*strideVal; // move to the next eligible position
+	}
 }
