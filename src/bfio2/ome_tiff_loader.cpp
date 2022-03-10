@@ -185,17 +185,19 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::getBoundingBoxVirtualTileD
 
 	auto tw = gsTiffTileLoader->tileWidth(0);
 	auto th = gsTiffTileLoader->tileHeight(0);
-	std::shared_ptr<std::vector<uint32_t>> tileData = std::make_shared<std::vector<uint32_t>>(tw * th);
+	std::shared_ptr<std::vector<uint32_t>> tileDataPtr = std::make_shared<std::vector<uint32_t>>(tw * th);
+	auto tileData = tileDataPtr->data();
 
 	auto vtw = (indexTrueColPixelMax-indexColPixelMin)/colStride+1;
 	auto vth = (indexTrueRowPixelMax-indexRowPixelMin)/rowStride+1;
-	std::shared_ptr<std::vector<uint32_t>> virtualTileData = std::make_shared<std::vector<uint32_t>>(vtw * vth);
+	std::shared_ptr<std::vector<uint32_t>> virtualTileDataPtr = std::make_shared<std::vector<uint32_t>>(vtw * vth);
+	auto virtualTileData = virtualTileDataPtr->data();
 
 	for (int i = minRowIndex; i <= maxRowIndex; ++i)
 	{
 		for (int j = minColIndex; j <= maxColIndex; ++j)
 		{
-			gsTiffTileLoader->loadTileFromFile(tileData, i, j, 0, 0);	
+			gsTiffTileLoader->loadTileFromFile(tileDataPtr, i, j, 0, 0);	
 			// take row slice from local tile and place it in virtual tile
 			// globalX = i*th + localX;
 			// virtualX = globalX - indexRowPixelMin;
@@ -224,22 +226,24 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::getBoundingBoxVirtualTileD
 				if (colStride == 1) 
 				{
 
-					std::copy(tileData->begin()+localX*tw+initialLocalY, tileData->begin()+localX*tw+endLocalY+1,virtualTileData->begin()+virtualX*vtw+initialVirtualY);
+					std::copy(tileDataPtr->begin()+localX*tw+initialLocalY, tileDataPtr->begin()+localX*tw+endLocalY+1,virtualTileDataPtr->begin()+virtualX*vtw+initialVirtualY);
 				}
 				else 
 				{
+					
+
 					for (size_t localY=initialLocalY; localY<=endLocalY; localY=localY+colStride)
 					{
 						size_t virtualY = (j*tw + localY - indexColPixelMin)/colStride;
 						size_t localDataIndex = localX*tw+localY;
 						size_t virtualDataIndex = virtualX*vtw+virtualY;
-						virtualTileData->at(virtualDataIndex) = tileData->at(localDataIndex);						
+						virtualTileData[virtualDataIndex] = tileData[localDataIndex];						
 					}
 				}
 			}	
 		}
 	}
-	return virtualTileData;
+	return virtualTileDataPtr;
 }
 
 void OmeTiffLoader::parse_metadata()

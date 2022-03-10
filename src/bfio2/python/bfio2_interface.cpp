@@ -81,8 +81,6 @@ PYBIND11_MODULE(libbfio2, m) {
 
         .def("get_xml_metadata",
         [](OmeTiffLoader& tl ) -> std::map<std::string, std::string>& {
-            
             return *tl.get_xml_metadata();
-    
         }, py::return_value_policy::reference_internal);
 }
