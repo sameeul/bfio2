@@ -21,6 +21,10 @@ class BioReader:
         self._physical_size_y_unit = None
         self._samples_per_pixel = None
         self._bits_per_sample = None
+        self._tile_height = None
+        self._tile_width = None
+        self._row_tile_count = None
+        self._column_tile_count = None
     
     def get_tile_data(self, row=None, col=None):
         if col != None:
@@ -38,16 +42,24 @@ class BioReader:
         return (self._image_width, self._image_height)
         
     def get_tile_height(self):
-        return self._image_reader.get_tile_height()
+        if self._tile_height == None:
+            self._tile_height = self._image_reader.get_tile_height()
+        return self._tile_height
 
     def get_tile_width(self):
-        return self._image_reader.get_tile_width()
+        if self._tile_width == None:
+            self._tile_width = self._image_reader.get_tile_width()
+        return self._tile_width
 
     def get_row_tile_count(self):
-        return self._image_reader.get_row_tile_count()
+        if self._row_tile_count == None:
+            self._row_tile_count = self._image_reader.get_row_tile_count()
+        return self._row_tile_count
 
     def get_column_tile_count(self):
-        return self._image_reader.get_column_tile_count()
+        if self._column_tile_count == None:
+            self._column_tile_count = self._image_reader.get_column_tile_count()
+        return self._column_tile_count
 
     def channel_names(self) :
         pass
