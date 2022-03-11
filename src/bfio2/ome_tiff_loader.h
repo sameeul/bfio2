@@ -11,7 +11,7 @@ class OmeTiffLoader{
 
     private:
         std::unique_ptr<fl::AbstractTileLoader<fl::DefaultView<uint32_t>>> gsTiffTileLoader;
-        std::shared_ptr<std::map<std::string, std::string>> xml_metadata_ptr;
+        mutable std::shared_ptr<std::map<std::string, std::string>> xml_metadata_ptr;
         size_t nThreads;
         std::string fName;
         
@@ -19,7 +19,7 @@ class OmeTiffLoader{
         std::tuple<uint32_t, uint32_t, uint32_t>  calculateTileDimensions() const;
         bool checkTileStatus() const;
         std::pair<size_t, size_t> getTileContainingPixel(size_t const indexRowPixel, size_t const indexColPixel) const;
-        void parse_metadata();
+        void parse_metadata() const;
         size_t adjustStride (size_t startPos, size_t currentPos, size_t strideVal) const;
 
     public:
@@ -39,7 +39,7 @@ class OmeTiffLoader{
         size_t getImageWidth () const ;
         size_t getTileHeight () const ;
         size_t getTileWidth () const ;
-        
-        std::shared_ptr<std::map<std::string, std::string>> get_xml_metadata();
+
+        std::string get_metadata_value(const std::string &metadata_key) const;
 
 };

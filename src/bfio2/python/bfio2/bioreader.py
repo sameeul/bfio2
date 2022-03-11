@@ -14,14 +14,13 @@ class BioReader:
             self._DIMS['X'] = self._image_width
         else:
             raise TypeError("Only OMETiff file format is supported")
-
-    def parse_xml_metadata(self):
-        if self._metadata == None:
-            self._metadata = self._image_reader.get_xml_metadata()
-
-    def get_xml_metadata(self):
-        self.parse_xml_metadata()
-        return self._metadata
+        
+        self._physical_size_x = None
+        self._physical_size_y = None
+        self._physical_size_x_unit = None
+        self._physical_size_y_unit = None
+        self._samples_per_pixel = None
+        self._bits_per_sample = None
     
     def get_tile_data(self, row=None, col=None):
         if col != None:
@@ -35,6 +34,9 @@ class BioReader:
     def get_image_width(self):
         return self._image_width
 
+    def get_image_size(self):
+        return (self._image_width, self._image_height)
+        
     def get_tile_height(self):
         return self._image_reader.get_tile_height()
 
@@ -51,24 +53,38 @@ class BioReader:
         pass
 
     def get_physical_size_x(self):
-        self.parse_xml_metadata()
-        return self._metadata.get("PhysicalSizeX", "") + self._metadata.get("PhysicalSizeXUnit", "")
+        if self._physical_size_x == None:
+            self._physical_size_x = self._image_reader.get_metadata_value("PhysicalSizeX")
+
+        if self._physical_size_x_unit == None:
+            self._physical_size_x_unit = self._image_reader.get_metadata_value("PhysicalSizeXUnit")
+
+        return self._physical_size_x + " " + self._physical_size_x_unit
 
     def get_physical_size_y(self):
-        self.parse_xml_metadata()
-        return self._metadata.get("PhysicalSizeY", "") + self._metadata.get("PhysicalSizeYUnit", "")
+        if self._physical_size_y == None:
+            self._physical_size_y = self._image_reader.get_metadata_value("PhysicalSizeY")
+
+        if self._physical_size_y_unit == None:
+            self._physical_size_y_unit = self._image_reader.get_metadata_value("PhysicalSizeYUnit")
+
+        return self._physical_size_y + " " + self._physical_size_y_unit
 
     def get_physical_size_z(self):
         pass
     
     def samples_per_pixel(self):
-        #check how to do it for multi channel 
-        self.parse_xml_metadata()
-        return int(self._metadata.get("SamplesPerPixel", "0"))
+        #check how to do it for multi channel
+        if self._samples_per_pixel == None:
+            self._samples_per_pixel = self._image_reader.get_metadata_value("SamplesPerPixel") 
+
+        return int(self._samples_per_pixel)
 
     def bits_per_sample(self):
-        self.parse_xml_metadata()
-        return int(self._metadata.get("BitsPerSample", "0"))
+        if self._bits_per_sample == None:
+            self._bits_per_sample = self._image_reader.get_metadata_value("BitsPerSample") 
+
+        return int(self._sbits_per_sample)
     
     def bytes_per_pixel(self):
         return self.bits_per_sample()*self.samples_per_pixel/8
@@ -95,9 +111,6 @@ class BioReader:
             return self._image_reader.get_virtual_tile_data_bounding_box_2d_strided(row_min, row_max, row_step, col_min, col_max, col_step)             
         else:
             return self._image_reader.get_virtual_tile_data_bounding_box_2d(row_min, row_max, col_min, col_max)
-
-    def get_vtile_data_strided(self, row_min, row_max, row_stride, col_min, col_max, col_stride):
-        return self._image_reader.get_virtual_tile_data_bounding_box_2d_strided(row_min, row_max, row_stride, col_min, col_max, col_stride)
 
     def _parse_slice(self,keys):
         
@@ -202,3 +215,6 @@ class BioReader:
 
     def __exit__(self, type_class, value, traceback):
         self.close()
+
+    def __setitem__(self,keys):
+        raise NotImplementedError('Cannot set values for {} class.'.format(self.__class__.__name__))

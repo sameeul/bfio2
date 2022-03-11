@@ -20,7 +20,8 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fNameWithPath) :
 };
 
 OmeTiffLoader::~OmeTiffLoader(){
-	gsTiffTileLoader = nullptr;	
+	gsTiffTileLoader = nullptr;
+	xml_metadata_ptr = nullptr;	
 };
 
 size_t OmeTiffLoader::getRowTileCount() const {return gsTiffTileLoader->numberTileHeight();}
@@ -246,7 +247,23 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::getBoundingBoxVirtualTileD
 	return virtualTileDataPtr;
 }
 
-void OmeTiffLoader::parse_metadata()
+std::string OmeTiffLoader::get_metadata_value(const std::string &metadata_key) const
+{
+	std::string value = "" ;
+	if (xml_metadata_ptr == nullptr){
+		parse_metadata();		
+	}
+	try {
+		value = xml_metadata_ptr->at(metadata_key);
+	}
+	catch (const std::exception& e) {
+		std::cout<<"Requested metadata key not found"<<std::endl;
+	}
+	return value;
+}
+
+
+void OmeTiffLoader::parse_metadata() const
 {	
 	TIFF *tiff_ = TIFFOpen(fName.c_str(), "r");
 	if (tiff_ != nullptr) 
@@ -258,7 +275,7 @@ void OmeTiffLoader::parse_metadata()
 		pugi::xml_document doc;
 		pugi::xml_parse_result result = doc.load_string(infobuf);;
 		xml_metadata_ptr = std::make_shared<std::map<std::string, std::string>>();
-
+		
 		if (result){
 			std::vector<pugi::xml_node> node_list;
 			node_list.push_back(doc.child("OME").child("Image").child("Pixels"));
@@ -269,6 +286,7 @@ void OmeTiffLoader::parse_metadata()
 					xml_metadata_ptr->emplace(attr.name(), attr.value());
 				}
 			}
+			// get channel info
 
 			// read structured annotaion
 			pugi::xml_node annotion_list = doc.child("OME").child("StructuredAnnotations");
@@ -282,15 +300,6 @@ void OmeTiffLoader::parse_metadata()
 		}
 	
 	} else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }	
-}
-
-std::shared_ptr<std::map<std::string, std::string>> OmeTiffLoader::get_xml_metadata()
-{
-	if (xml_metadata_ptr == nullptr){
-		parse_metadata();		
-	}
-	return xml_metadata_ptr;
-
 }
 
 size_t OmeTiffLoader::adjustStride (size_t startPos, size_t currentPos, size_t strideVal) const

@@ -78,9 +78,8 @@ PYBIND11_MODULE(libbfio2, m) {
             return as_pyarray_shared_2d(tmp, num_rows, num_cols) ;
         }, py::return_value_policy::reference)
 
-
-        .def("get_xml_metadata",
-        [](OmeTiffLoader& tl ) -> std::map<std::string, std::string>& {
-            return *tl.get_xml_metadata();
+        .def("get_metadata_value",
+        [](OmeTiffLoader& tl, const std::string& metadata_key ) -> py::str {
+            return tl.get_metadata_value(metadata_key);
         }, py::return_value_policy::reference_internal);
 }
