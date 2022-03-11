@@ -7,7 +7,6 @@ class BioReader:
         self._DIMS = {}
         if file_name.endswith('.ome.tif'):
             self._image_reader = OmeTiffLoader(file_name)
-            self._metadata = None
             self._image_height = self._image_reader.get_image_height()
             self._image_width = self._image_reader.get_image_width()
             self._DIMS['Y'] = self._image_height
@@ -96,7 +95,7 @@ class BioReader:
         if self._bits_per_sample == None:
             self._bits_per_sample = self._image_reader.get_metadata_value("BitsPerSample") 
 
-        return int(self._sbits_per_sample)
+        return int(self._bits_per_sample)
     
     def bytes_per_pixel(self):
         return self.bits_per_sample()*self.samples_per_pixel/8
@@ -107,13 +106,13 @@ class BioReader:
         Y = self._val_xyz(slice_items['Y'], 'Y')
 
         row_min = Y[0]
-        row_max = Y[1]
+        row_max = Y[1]-1
         if len(Y) == 3:
             row_step = Y[2]
         else:
             row_step = 1
         col_min = X[0]
-        col_max = X[1]
+        col_max = X[1]-1
         if len(X) == 3:
             col_step = X[2]
         else:
@@ -192,7 +191,7 @@ class BioReader:
         # start looping through batches
         for index in range(total_tiles):
             image = self.get_tile_data(index)
-            yield image, index
+            yield index, image
 
 
     """ -------------------- """

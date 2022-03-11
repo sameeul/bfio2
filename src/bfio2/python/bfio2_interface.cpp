@@ -6,7 +6,6 @@
 namespace py = pybind11;
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
-PYBIND11_MAKE_OPAQUE(std::map<std::string, std::string>);
 
 template <typename Sequence>
 inline py::array_t<typename Sequence::value_type> as_pyarray_shared(std::shared_ptr<Sequence> seq_ptr) {
@@ -27,7 +26,6 @@ inline py::array_t<typename Sequence::value_type> as_pyarray_shared_2d(std::shar
 }
 
 PYBIND11_MODULE(libbfio2, m) {
-  py::bind_map<std::map<std::string, std::string>>(m, "MapStringString");
   py::class_<OmeTiffLoader, std::shared_ptr<OmeTiffLoader>>(m, "OmeTiffLoader")
     .def(py::init<const std::string &>())
     .def("get_image_height", &OmeTiffLoader::getImageHeight)
