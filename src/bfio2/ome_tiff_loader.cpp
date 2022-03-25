@@ -11,8 +11,8 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path) :
     auto options = std::make_unique<fl::FastLoaderConfiguration<fl::DefaultView<uint32_t>>>(tile_loader_);
     // Set the configuration
     uint32_t radiusDepth = 0;
-    uint32_t radiusHeight = 0;
-    uint32_t radiusWidth = 0;
+    uint32_t radiusHeight = 1;
+    uint32_t radiusWidth = 1;
 
     options->radius(radiusDepth, radiusHeight, radiusWidth);
     options->ordered(true);

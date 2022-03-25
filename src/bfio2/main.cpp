@@ -154,11 +154,11 @@ void test5()
 
 void test6()
 {
-    std::cout<<"Test 6 - Virtual Tile Stride" <<std::endl;
+    std::cout<<"Test 6 - Loop through tiles" <<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
     for (int i=0; i<4; ++i){
         std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByIndex(i);
-        size_t sum = std::accumulate(tileData->begin(), tileData->end(), 0);        
+        size_t sum = std::accumulate(tileData->begin(), tileData->end(), size_t(0));        
         std::cout << "Tile id " << i << ", sum = "<< sum <<std::endl;
     }
 }
