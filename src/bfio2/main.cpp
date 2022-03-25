@@ -5,7 +5,7 @@
 #include <iostream>
 #include "ome_tiff_loader.h"
 #include <sys/resource.h>
-#include "../../lib/pugixml/pugixml.hpp"
+#include <pugixml.hpp>
 
 #include <numeric>
 
@@ -29,23 +29,23 @@ void test1()
 {
     std::cout<<"Test 1 - Virtual Tile From 4 Tiles" <<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("r01_x10_y05_z08.ome.tif");
-    auto numRowTiles = imgLoader.getRowTileCount();
-    auto numColTiles = imgLoader.getColumnTileCount();  
+    auto numRowTiles = imgLoader.GetRowTileCount();
+    auto numColTiles = imgLoader.GetColumnTileCount();  
     auto start = std::chrono::steady_clock::now(); 
 
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.getTileData(0,0);
+    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByRowCol(0,0);
     size_t sum = 0;
     sum += partial_sum(tileData, 500, 1023,700,1023);
-    tileData = imgLoader.getTileData(0,1);
+    tileData = imgLoader.GetTileDataByRowCol(0,1);
     sum += partial_sum(tileData, 0, 1500-1023,700,1023);
-    tileData = imgLoader.getTileData(1,0);
+    tileData = imgLoader.GetTileDataByRowCol(1,0);
     sum += partial_sum(tileData, 500, 1023,0,1400-1023);
-    tileData = imgLoader.getTileData(1,1);
+    tileData = imgLoader.GetTileDataByRowCol(1,1);
     sum += partial_sum(tileData, 0, 1500-1023,0,1400-1023);
     
     std::cout << "Manual Total :" << sum << std::endl;
 
-    auto vTileData = imgLoader.getBoundingBoxVirtualTileData(700,1400, 500, 1500);
+    auto vTileData = imgLoader.GetBoundingBoxVirtualTileData(700,1400, 500, 1500);
     size_t count = 0;
     sum = 0;
     for (auto x: *vTileData){
@@ -64,17 +64,17 @@ void test2()
 {
     std::cout<<"Test 2 - Single Tile Subsection" <<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("r01_x10_y05_z08.ome.tif");
-    auto numRowTiles = imgLoader.getRowTileCount();
-    auto numColTiles = imgLoader.getColumnTileCount();  
+    auto numRowTiles = imgLoader.GetRowTileCount();
+    auto numColTiles = imgLoader.GetColumnTileCount();  
     auto start = std::chrono::steady_clock::now(); 
 
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.getTileData(0,0);
+    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByRowCol(0,0);
     size_t sum = 0;
     sum += partial_sum(tileData, 0, 100,0,100);
    
     std::cout << "Manual Total :" << sum << std::endl;
 
-    auto vTileData = imgLoader.getBoundingBoxVirtualTileData(0,100, 0, 100);
+    auto vTileData = imgLoader.GetBoundingBoxVirtualTileData(0,100, 0, 100);
     size_t count = 0;
     sum = 0;
     for (auto x: *vTileData){
@@ -92,17 +92,17 @@ void test3()
 {
     std::cout<<"Test 3 - Single Tile (Full)" <<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("r01_x10_y05_z08.ome.tif");
-    auto numRowTiles = imgLoader.getRowTileCount();
-    auto numColTiles = imgLoader.getColumnTileCount();  
+    auto numRowTiles = imgLoader.GetRowTileCount();
+    auto numColTiles = imgLoader.GetColumnTileCount();  
     auto start = std::chrono::steady_clock::now(); 
 
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.getTileData(0,0);
+    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByRowCol(0,0);
     size_t sum = 0;
     sum += partial_sum(tileData, 0, 1023,0,1023);
    
     std::cout << "Manual Total :" << sum << std::endl;
 
-    auto vTileData = imgLoader.getBoundingBoxVirtualTileData(0,1023, 0, 1023);
+    auto vTileData = imgLoader.GetBoundingBoxVirtualTileData(0,1023, 0, 1023);
     size_t count = 0;
     sum = 0;
     for (auto x: *vTileData){
@@ -124,7 +124,7 @@ void test4()
     struct rusage rss1, rss2;
     auto start = std::chrono::steady_clock::now(); 
     auto tmp = getrusage(RUSAGE_SELF, &rss1);
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.getTileData(0,0);
+    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByRowCol(0,0);
     tmp = getrusage(RUSAGE_SELF, &rss2);
 
     std::cout<<"Memory usage for tile " << rss2.ru_maxrss - rss1.ru_maxrss << std::endl;
@@ -139,8 +139,8 @@ void test5()
     std::cout<<"Test 5 - Virtual Tile Stride" <<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 
-    std::shared_ptr<std::vector<uint32_t>> tileData1 = imgLoader.getBoundingBoxVirtualTileData(0,1079,0,1023);
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.getBoundingBoxVirtualTileDataStrideVersion(0,1079,3,0,1023,1);
+    std::shared_ptr<std::vector<uint32_t>> tileData1 = imgLoader.GetBoundingBoxVirtualTileData(0,1079,0,1023);
+    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetBoundingBoxVirtualTileDataStrideVersion(0,1079,1,0,1023,2);
     for(int i=0;i<10;i++){
         if (i%2==0){
             if(tileData1->at(i) != tileData->at(i/2)){std::cout<<"not match"<<std::endl;}
@@ -151,20 +151,38 @@ void test5()
     std::cout << sum1 << " " << sum2<<std::endl;
 }
 
+
 void test6()
 {
+    std::cout<<"Test 6 - Virtual Tile Stride" <<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
-
-    auto metadata_ptr = imgLoader.get_xml_metadata();
-    for (const auto [key, value] : *metadata_ptr)
-        std::cout << key << " " << value << "\n";
+    for (int i=0; i<4; ++i){
+        std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByIndex(i);
+        size_t sum = std::accumulate(tileData->begin(), tileData->end(), 0);        
+        std::cout << "Tile id " << i << ", sum = "<< sum <<std::endl;
+    }
 }
+
+void test7()
+{
+    std::cout<<"Test 7 - Sanity check" <<std::endl;
+    OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByIndex(0);
+//    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByRowCol(0,0);
+
+    for (int i=0; i< imgLoader.GetTileHeight()*imgLoader.GetTileWidth(); ++i){
+        std::cout<<tileData->at(i)<<std::endl;
+    }
+
+}
+
 int main(){
-    //  test1();
-    //  test2();
-    //  test3();
-    //  test4();
-    //  test5();
+    test1();
+    test2();
+    test3();
+    test4();
+    test5();
     test6();
+    //test7();
     return 0;
 }
