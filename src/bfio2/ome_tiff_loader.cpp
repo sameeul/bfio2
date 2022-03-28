@@ -7,7 +7,17 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path) :
 	fname_(fname_with_path),
 	n_threads_(8)
 {
-	tile_loader_ = std::make_shared<OmeTiffTileLoader<uint32_t>>(n_threads_, fname_);
+	if (CheckTileStatus())
+	{
+		tile_loader_ = std::make_shared<OmeTiffGrayScaleTileLoader<uint32_t>>(n_threads_, fname_);
+	}
+	else 
+	{
+		// since the file is not tiled, we provide the tile dimensions
+		auto [tw, th, td]  = CalculateTileDimensions();		
+		tile_loader_ = std::make_shared<OmeTiffGrayScaleStripLoader<uint32_t>>(n_threads_, fname_, tw, th, td);
+	}
+
     auto options = std::make_unique<fl::FastLoaderConfiguration<fl::DefaultView<uint32_t>>>(tile_loader_);
     // Set the configuration
     uint32_t radiusDepth = 0;
@@ -165,12 +175,20 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 	auto vtw = index_true_col_pixel_max-index_col_pixel_min+1;
 	auto vth = index_true_row_pixel_max-index_row_pixel_min+1;
 	std::shared_ptr<std::vector<uint32_t>> virtual_tile_data_ptr = std::make_shared<std::vector<uint32_t>>(vtw * vth);
-    
+
 	for (int i = min_row_index; i <= max_row_index; ++i)
 	{
 		for (int j = min_col_index; j <= max_col_index; ++j)
 		{
 			fast_loader_->requestView(i, j, 0, 0);
+		}
+	}
+
+	for (int i = min_row_index; i <= max_row_index; ++i)
+	{
+		for (int j = min_col_index; j <= max_col_index; ++j)
+		{
+	//		fast_loader_->requestView(i, j, 0, 0);
 			const auto &view = fast_loader_->getBlockingResult();	
 			// take row slice from local tile and place it in virtual tile
 			// global_x = i*th + local_x;
@@ -202,8 +220,8 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 }
 
 std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileDataStrideVersion(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
-                                                                    size_t row_stride, size_t const index_col_pixel_min, size_t const index_col_pixel_max, 
-                                                                    size_t col_stride)
+                                                                    size_t const row_stride, size_t const index_col_pixel_min, size_t const index_col_pixel_max, 
+                                                                    size_t const col_stride)
 {
 
 	// Convention 
@@ -237,6 +255,13 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 		for (int j = min_col_index; j <= max_col_index; ++j)
 		{
 			fast_loader_->requestView(i, j, 0, 0);
+		}
+	}
+
+	for (int i = min_row_index; i <= max_row_index; ++i)
+	{
+		for (int j = min_col_index; j <= max_col_index; ++j)
+		{
 			const auto &view = fast_loader_->getBlockingResult();
 			// take row slice from local tile and place it in virtual tile
 			// global_x = i*th + local_x;
@@ -279,8 +304,8 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 					for (size_t local_y=initial_local_y; local_y<=end_local_y; local_y=local_y+col_stride)
 					{
 						size_t virtual_y = (j*tw + local_y - index_col_pixel_min)/col_stride;
-						//size_t local_data_index = view_ptr+local_x*vw+vrw+local_y;
-						//size_t virtual_data_index = virtual_x*vtw+virtual_y;
+						// local_data_index = view_ptr+local_x*vw+vrw+local_y;
+						// virtual_data_index = virtual_x*vtw+virtual_y;
 						virtual_tile_data_ptr[virtual_x*vtw+virtual_y] = *(view_ptr+local_x*vw+vrw+local_y);						
 					}
 				}
@@ -358,4 +383,14 @@ size_t OmeTiffLoader::AdjustStride (size_t start_pos, size_t current_pos, size_t
 	{
 		return ((tmp/stride_val)+1)*stride_val; // move to the next eligible position
 	}
+}
+
+short OmeTiffLoader::GetBitsPerSamples() const
+{
+	return tile_loader_->bitsPerSample();
+}
+
+short OmeTiffLoader::GetSamplesPerPixel() const
+{
+	return tile_loader_->samplePerPixel();
 }

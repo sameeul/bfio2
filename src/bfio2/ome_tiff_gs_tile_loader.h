@@ -1,23 +1,13 @@
 // followed the example of grayscale_tile_tiff_loader from fastloader repo
 
-#ifndef OMETIFF_TIFF_TILE_LOADER_H
-#define OMETIFF_TIFF_TILE_LOADER_H
-#include <fast_loader/fast_loader.h>
+#ifndef OMETIFF_GS_TIFF_TILE_LOADER_H
+#define OMETIFF_GS_TIFF_TILE_LOADER_H
+#include "bfio_tile_loader.h"
 
-#ifdef __APPLE__
-#define uint64 uint64_hack_
-#define int64 int64_hack_
-#include <tiffio.h>
-#undef uint64
-#undef int64
-#else
-#include <tiffio.h>
-#endif
-
-/// @brief Tile Loader for 2D OMETiff Grayscale tiff files
+/// @brief Tile Loader for 2D OMETiff Grayscale tiff tile files
 /// @tparam DataType AbstractView's internal type
 template<class DataType>
- class OmeTiffTileLoader : public fl::AbstractTileLoader<fl::DefaultView<DataType>> {
+ class OmeTiffGrayScaleTileLoader : public BfioTileLoader<DataType> {
   TIFF *
       tiff_ = nullptr;             ///< Tiff file pointer
 
@@ -29,18 +19,18 @@ template<class DataType>
 
   short
       sample_format_ = 0,          ///< Sample format as defined by libtiff
-      bits_per_sample_ = 0;         ///< Bit Per Sample as defined by libtiff
+      bits_per_sample_ = 0,         ///< Bit Per Sample as defined by libtiff
+      samples_per_pixel_ = 0;
  public:
 
-  /// @brief OmeTiffTileLoader unique constructor
-  /// @param numberThreads Number of threads associated
-  /// @param filePath Path of tiff file
-  OmeTiffTileLoader(size_t numberThreads, std::string const &filePath)
-      : fl::AbstractTileLoader<fl::DefaultView<DataType>>("OmeTiffTileLoader", numberThreads, filePath) {
-    short samples_per_pixel = 0;
+  /// @brief OmeTiffGrayScaleTileLoader unique constructor
+  /// @param number_threads Number of threads associated
+  /// @param file_path Path of tiff file
+  OmeTiffGrayScaleTileLoader(size_t number_threads, std::string const &file_path)
+      : BfioTileLoader<DataType>("OmeTiffGrayScaleTileLoader", number_threads, file_path) {
 
     // Open the file
-    tiff_ = TIFFOpen(filePath.c_str(), "rm");
+    tiff_ = TIFFOpen(file_path.c_str(), "rm");
     if (tiff_ != nullptr) {
       if (TIFFIsTiled(tiff_) == 0) { throw (std::runtime_error("Tile Loader ERROR: The file is not tiled.")); }
       // Load/parse header
@@ -54,14 +44,14 @@ template<class DataType>
       this->tile_width_ = size_t(tmp);
       TIFFGetField(tiff_, TIFFTAG_TILELENGTH, &tmp);
       this->tile_height_ = size_t(tmp);
-      TIFFGetField(tiff_, TIFFTAG_SAMPLESPERPIXEL, &samples_per_pixel);
+      TIFFGetField(tiff_, TIFFTAG_SAMPLESPERPIXEL, &(this->samples_per_pixel_));
       TIFFGetField(tiff_, TIFFTAG_BITSPERSAMPLE, &(this->bits_per_sample_));
       TIFFGetField(tiff_, TIFFTAG_SAMPLEFORMAT, &(this->sample_format_));
 
       // Test if the file is greyscale
-      if (samples_per_pixel != 1) {
+      if (samples_per_pixel_ != 1) {
         std::stringstream message;
-        message << "Tile Loader ERROR: The file is not greyscale: SamplesPerPixel = " << samples_per_pixel << ".";
+        message << "Tile Loader ERROR: The file is not greyscale: SamplesPerPixel = " << samples_per_pixel_ << ".";
         throw (std::runtime_error(message.str()));
       }
       // Interpret undefined data format as unsigned integer data
@@ -69,8 +59,8 @@ template<class DataType>
     } else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
   }
 
-  /// @brief OmeTiffTileLoader destructor
-  ~OmeTiffTileLoader() override {
+  /// @brief OmeTiffGrayScaleTileLoader destructor
+  ~OmeTiffGrayScaleTileLoader() override {
     if (tiff_) {
       TIFFClose(tiff_);
       tiff_ = nullptr;
@@ -148,10 +138,10 @@ template<class DataType>
     _TIFFfree(tiff_tile);
   }
 
-  /// @brief Copy Method for the OmeTiffTileLoader
-  /// @return Return a copy of the current OmeTiffTileLoader
+  /// @brief Copy Method for the OmeTiffGrayScaleTileLoader
+  /// @return Return a copy of the current OmeTiffGrayScaleTileLoader
   std::shared_ptr<fl::AbstractTileLoader<fl::DefaultView<DataType>>> copyTileLoader() override {
-    return std::make_shared<OmeTiffTileLoader<DataType>>(this->numberThreads(), this->filePath());
+    return std::make_shared<OmeTiffGrayScaleTileLoader<DataType>>(this->numberThreads(), this->filePath());
   }
 
   /// @brief Tiff file height
@@ -173,6 +163,7 @@ template<class DataType>
   /// @brief Tiff bits per sample
   /// @return Size of a sample in bits
   [[nodiscard]] short bitsPerSample() const override { return bits_per_sample_; }
+  [[nodiscard]] short samplePerPixel() const override { return samples_per_pixel_; }
   /// @brief Level accessor
   /// @return 1
   [[nodiscard]] size_t numberPyramidLevels() const override { return 1; }
@@ -189,4 +180,4 @@ template<class DataType>
 
 };
 
-#endif //OMETIFF_TIFF_TILE_LOADER_H
+#endif //OMETIFF_GS_TIFF_TILE_LOADER_H

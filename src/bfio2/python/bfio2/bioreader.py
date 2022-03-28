@@ -1,7 +1,11 @@
 from .libbfio2 import OmeTiffLoader
 import numpy
 
+
 class BioReader:
+
+    READ_ONLY_MESSAGE = "{} is read-only."
+    
     def __init__(self, file_name):
         self._file_name = file_name
         self._DIMS = {}
@@ -25,37 +29,58 @@ class BioReader:
         self._row_tile_count = None
         self._column_tile_count = None
     
-    def get_tile_data(self, row=None, col=None):
+    def data(self, row=None, col=None):
         if col != None:
             return self._image_reader.get_tile_data_2d_by_row_col(row, col)
         else:
             return self._image_reader.get_tile_data_2d_by_index(row)
 
-    def get_image_height(self):
+    @property
+    def image_height(self):
         return self._image_height
+    @image_height.setter
+    def image_height(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
-    def get_image_width(self):
+    @property
+    def image_width(self):
         return self._image_width
 
-    def get_image_size(self):
+    @image_width.setter
+    def image_width(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
+
+    def image_size(self):
         return (self._image_width, self._image_height)
-        
-    def get_tile_height(self):
+
+    @property    
+    def tile_height(self):
         if self._tile_height == None:
             self._tile_height = self._image_reader.get_tile_height()
         return self._tile_height
 
-    def get_tile_width(self):
+    @tile_height.setter
+    def tile_height(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
+    @property    
+    def tile_width(self):
         if self._tile_width == None:
             self._tile_width = self._image_reader.get_tile_width()
         return self._tile_width
 
-    def get_row_tile_count(self):
+
+    @tile_width.setter
+    def tile_width(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
+    def row_tile_count(self):
         if self._row_tile_count == None:
             self._row_tile_count = self._image_reader.get_row_tile_count()
         return self._row_tile_count
 
-    def get_column_tile_count(self):
+    def column_tile_count(self):
         if self._column_tile_count == None:
             self._column_tile_count = self._image_reader.get_column_tile_count()
         return self._column_tile_count
@@ -63,23 +88,23 @@ class BioReader:
     def channel_names(self) :
         pass
 
-    def get_physical_size_x(self):
+    def physical_size_x(self):
         if self._physical_size_x == None:
             self._physical_size_x = self._image_reader.get_metadata_value("PhysicalSizeX")
 
         if self._physical_size_x_unit == None:
             self._physical_size_x_unit = self._image_reader.get_metadata_value("PhysicalSizeXUnit")
 
-        return self._physical_size_x + " " + self._physical_size_x_unit
+        return (self._physical_size_x, self._physical_size_x_unit)
 
-    def get_physical_size_y(self):
+    def physical_size_y(self):
         if self._physical_size_y == None:
             self._physical_size_y = self._image_reader.get_metadata_value("PhysicalSizeY")
 
         if self._physical_size_y_unit == None:
             self._physical_size_y_unit = self._image_reader.get_metadata_value("PhysicalSizeYUnit")
 
-        return self._physical_size_y + " " + self._physical_size_y_unit
+        return (self._physical_size_y, self._physical_size_y_unit)
 
     def get_physical_size_z(self):
         pass
@@ -87,13 +112,13 @@ class BioReader:
     def samples_per_pixel(self):
         #check how to do it for multi channel
         if self._samples_per_pixel == None:
-            self._samples_per_pixel = self._image_reader.get_metadata_value("SamplesPerPixel") 
+            self._samples_per_pixel = self._image_reader.get_sample_per_pixel() 
 
         return int(self._samples_per_pixel)
 
     def bits_per_sample(self):
         if self._bits_per_sample == None:
-            self._bits_per_sample = self._image_reader.get_metadata_value("BitsPerSample") 
+            self._bits_per_sample = self._image_reader.get_bits_per_sample() 
 
         return int(self._bits_per_sample)
     
@@ -182,11 +207,32 @@ class BioReader:
                     raise ValueError('Did not recognize indexing value of type: {}'.format(type(key)))
         return ind
 
-    def __call__(self) :
+    def __call__(self, tile_size, tile_stride) :
         # Iterate through tiles of an image
+        self._iter_tile_size = tile_size
+        self._iter_tile_stride = tile_stride        
         return self
 
     def __iter__(self):
+        tile_size = self._iter_tile_size
+        tile_stride = self._iter_tile_stride
+
+
+        if tile_size is None:
+            raise SyntaxError(
+                "Cannot directly iterate over a BioReader object."
+                + "Call it (i.e. for i in bioreader(256,256))"
+            )
+
+        # input error checking
+        assert len(tile_size) == 2, "tile_size must be a list with 2 elements"
+        if tile_stride is not None:
+            assert len(tile_stride) == 2, "stride must be a list with 2 elements"
+        else:
+            tile_stride = tile_size
+            
+        self._iter_tile_size = None
+        self._iter_tile_stride = None
         total_tiles = self.get_column_tile_count()*self.get_row_tile_count()    
         # start looping through batches
         for index in range(total_tiles):
