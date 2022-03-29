@@ -40,6 +40,10 @@ PYBIND11_MODULE(libbfio2, m) {
 
     .def("get_column_tile_count", &OmeTiffLoader::GetColumnTileCount)
 
+    .def("get_bits_per_sample", &OmeTiffLoader::GetBitsPerSamples)
+
+    .def("get_sample_per_pixel", &OmeTiffLoader::GetSamplesPerPixel)
+
     .def("get_tile_data_2d_by_index",
         [](OmeTiffLoader& tl, size_t const indexGlobalTile) -> py::array_t<uint32_t> {
             auto tmp = tl.GetTileDataByIndex(indexGlobalTile);
@@ -79,5 +83,22 @@ PYBIND11_MODULE(libbfio2, m) {
         .def("get_metadata_value",
         [](OmeTiffLoader& tl, const std::string& metadata_key ) -> py::str {
             return tl.GetMetaDataValue(metadata_key);
-        }, py::return_value_policy::reference_internal);
+        }, py::return_value_policy::reference_internal)
+
+        .def("send_iterator_view_requests",
+        [](OmeTiffLoader& tl, size_t const tile_height, size_t const tile_width, size_t const row_stride, size_t const col_stride) -> void {
+            tl.SetViewRequests(tile_height, tile_width, row_stride, col_stride);
+        })
+
+        .def("get_iterator_requested_tile_data",
+        [](OmeTiffLoader& tl, size_t const index_row_pixel_min, size_t const index_row_pixel_max, size_t const index_col_pixel_min, size_t const index_col_pixel_max) -> py::array_t<uint32_t> {
+            auto tmp = tl.GetViewRequests(index_row_pixel_min, index_row_pixel_max, index_col_pixel_min, index_col_pixel_max);
+            auto ih = tl.GetImageHeight();
+	        auto iw = tl.GetImageWidth();
+	        auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih : index_row_pixel_max;
+	        auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw : index_col_pixel_max;
+            size_t num_rows = index_true_row_pixel_max - index_row_pixel_min + 1;
+            size_t num_cols = index_true_col_pixel_max - index_col_pixel_min + 1;
+            return as_pyarray_shared_2d(tmp, num_rows, num_cols) ;
+        }, py::return_value_policy::reference);
 }

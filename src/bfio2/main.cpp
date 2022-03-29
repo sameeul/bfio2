@@ -176,13 +176,39 @@ void test7()
 
 }
 
+void test8()
+{
+    std::cout<<"Test 8 - Iterator check" <<std::endl;
+    OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+    
+    size_t tw = 256;
+    size_t th = 256;
+    size_t rs = 200;
+    size_t cs = 200;
+    imgLoader.SetViewRequests(th, tw, rs, cs);
+    auto ih = imgLoader.GetImageHeight();
+    auto iw = imgLoader.GetImageWidth();
+    for(size_t x=0; x<ih; x+=rs){
+		size_t r_min = x;
+		size_t r_max = x+rs-1;
+		for(size_t y=0; y<iw; y+=cs){
+			size_t c_min = y;
+			size_t c_max = y+cs-1;
+			auto tile_data = imgLoader.GetViewRequests(r_min, r_max, c_min, c_max);
+            auto sum = std::accumulate(tile_data->begin(), tile_data->end(), size_t(0));
+            std::cout << sum << std::endl;
+		}
+	}
+
+}
 int main(){
-    test1();
-    test2();
-    test3();
-    test4();
-    test5();
-    test6();
+    // test1();
+    // test2();
+    // test3();
+    // test4();
+    // test5();
+    // test6();
     //test7();
+    test8();
     return 0;
 }

@@ -230,14 +230,24 @@ class BioReader:
             assert len(tile_stride) == 2, "stride must be a list with 2 elements"
         else:
             tile_stride = tile_size
-            
+
         self._iter_tile_size = None
         self._iter_tile_stride = None
-        total_tiles = self.get_column_tile_count()*self.get_row_tile_count()    
-        # start looping through batches
-        for index in range(total_tiles):
-            image = self.get_tile_data(index)
-            yield index, image
+        # request views
+        self._image_reader.send_iterator_view_requests(tile_size[0], tile_size[1], tile_stride[0], tile_stride[1])
+        # collect views
+        row_count = 0
+        for x in range(0, self.image_height, tile_stride[0]):
+            r_min = x
+            r_max = r_min + tile_stride[0] - 1
+            row_count += 1
+            col_count = 0
+            for y in range (0, self.image_width, tile_stride[1]):
+                c_min = y
+                c_max = c_min + tile_stride[1] - 1
+                col_count += 1
+                image = self._image_reader.get_iterator_requested_tile_data(r_min, r_max, c_min, c_max)
+                yield (row_count, col_count), image
 
 
     """ -------------------- """

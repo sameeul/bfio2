@@ -46,5 +46,7 @@ class OmeTiffLoader{
         short GetBitsPerSamples () const ;
 
         std::string GetMetaDataValue(const std::string &metadata_key) const;
-
+        void SetViewRequests(size_t const tile_width, size_t const tile_height, size_t const row_stride, size_t const col_stride);
+        std::shared_ptr<std::vector<uint32_t>> GetViewRequests(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
+                                                                    size_t const index_col_pixel_min, size_t const index_col_pixel_max);
 };
