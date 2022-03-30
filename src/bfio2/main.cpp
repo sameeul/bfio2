@@ -9,17 +9,17 @@
 
 #include <numeric>
 
-size_t partial_sum(std::shared_ptr<std::vector<uint32_t>> data, size_t x_min, size_t x_max, size_t y_min, size_t y_max)
+size_t partial_sum(std::shared_ptr<std::vector<uint32_t>> data, size_t row_min, size_t row_max,  size_t col_min, size_t col_max, size_t col_width)
 {
     size_t sum = 0;
-    for (int i=y_min; i<= y_max; ++i)
+    for (int i=row_min; i<= row_max; ++i)
     {
-        for (int j=x_min; j<=x_max; j++)
+        auto col_start_ptr = i*col_width;
+        for (int j=col_min; j<=col_max; j++)
         {
-            sum = sum + data->at(i*1024+j);
+            sum = sum + data->at(col_start_ptr+j);
         }
     }
-
     return sum;
 }
 
@@ -28,24 +28,24 @@ size_t partial_sum(std::shared_ptr<std::vector<uint32_t>> data, size_t x_min, si
 void test1()
 {
     std::cout<<"Test 1 - Virtual Tile From 4 Tiles" <<std::endl;
-    OmeTiffLoader imgLoader = OmeTiffLoader("r01_x10_y05_z08.ome.tif");
+    OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
     auto numRowTiles = imgLoader.GetRowTileCount();
     auto numColTiles = imgLoader.GetColumnTileCount();  
     auto start = std::chrono::steady_clock::now(); 
 
     std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByRowCol(0,0);
     size_t sum = 0;
-    sum += partial_sum(tileData, 500, 1023,700,1023);
+    sum += partial_sum(tileData, 500, 1023,700,1023, 1024);
     tileData = imgLoader.GetTileDataByRowCol(0,1);
-    sum += partial_sum(tileData, 0, 1500-1023,700,1023);
+    sum += partial_sum(tileData, 500, 1023, 0,1070-1024, 56);
     tileData = imgLoader.GetTileDataByRowCol(1,0);
-    sum += partial_sum(tileData, 500, 1023,0,1400-1023);
+    sum += partial_sum(tileData, 0, 1050-1024,700,1023, 1024);
     tileData = imgLoader.GetTileDataByRowCol(1,1);
-    sum += partial_sum(tileData, 0, 1500-1023,0,1400-1023);
+    sum += partial_sum(tileData, 0, 1050-1024,0,1070-1024,56);
     
     std::cout << "Manual Total :" << sum << std::endl;
 
-    auto vTileData = imgLoader.GetBoundingBoxVirtualTileData(700,1400, 500, 1500);
+    auto vTileData = imgLoader.GetBoundingBoxVirtualTileData(500,1050, 700, 1070);
     size_t count = 0;
     sum = 0;
     for (auto x: *vTileData){
@@ -63,14 +63,14 @@ void test1()
 void test2()
 {
     std::cout<<"Test 2 - Single Tile Subsection" <<std::endl;
-    OmeTiffLoader imgLoader = OmeTiffLoader("r01_x10_y05_z08.ome.tif");
+    OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
     auto numRowTiles = imgLoader.GetRowTileCount();
     auto numColTiles = imgLoader.GetColumnTileCount();  
     auto start = std::chrono::steady_clock::now(); 
 
     std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByRowCol(0,0);
     size_t sum = 0;
-    sum += partial_sum(tileData, 0, 100,0,100);
+    sum += partial_sum(tileData, 0, 100,0,100, 1024);
    
     std::cout << "Manual Total :" << sum << std::endl;
 
@@ -91,14 +91,14 @@ void test2()
 void test3()
 {
     std::cout<<"Test 3 - Single Tile (Full)" <<std::endl;
-    OmeTiffLoader imgLoader = OmeTiffLoader("r01_x10_y05_z08.ome.tif");
+    OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
     auto numRowTiles = imgLoader.GetRowTileCount();
     auto numColTiles = imgLoader.GetColumnTileCount();  
     auto start = std::chrono::steady_clock::now(); 
 
     std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByRowCol(0,0);
     size_t sum = 0;
-    sum += partial_sum(tileData, 0, 1023,0,1023);
+    sum += partial_sum(tileData, 0, 1023,0,1023, 1024);
    
     std::cout << "Manual Total :" << sum << std::endl;
 
@@ -154,7 +154,7 @@ void test5()
 
 void test6()
 {
-    std::cout<<"Test 6 - Loop through tiles" <<std::endl;
+    std::cout<<"Test 6 - Loop through tiles using index" <<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
     for (int i=0; i<4; ++i){
         std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByIndex(i);
@@ -201,14 +201,29 @@ void test8()
 	}
 
 }
+
+void test9()
+{
+    std::cout<<"Test 6 - Loop through tiles using row and col" <<std::endl;
+    OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+    for (int i=0; i<2; ++i){
+        for (int j=0; j<2; ++j){
+            std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByRowCol(i,j);
+            size_t sum = std::accumulate(tileData->begin(), tileData->end(), size_t(0));        
+            std::cout << "Tile id " << i << ", sum = "<< sum <<std::endl;
+        }
+
+    }
+}
 int main(){
-    // test1();
-    // test2();
-    // test3();
-    // test4();
-    // test5();
-    // test6();
+    test1();
+    test2();
+    test3();
+    test4();
+    test5();
+    test6();
     //test7();
-    test8();
+    //test8();
+    test9();
     return 0;
 }

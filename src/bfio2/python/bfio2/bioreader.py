@@ -207,7 +207,7 @@ class BioReader:
                     raise ValueError('Did not recognize indexing value of type: {}'.format(type(key)))
         return ind
 
-    def __call__(self, tile_size, tile_stride) :
+    def __call__(self, tile_size, tile_stride=None) :
         # Iterate through tiles of an image
         self._iter_tile_size = tile_size
         self._iter_tile_stride = tile_stride        
@@ -240,15 +240,16 @@ class BioReader:
         for x in range(0, self.image_height, tile_stride[0]):
             r_min = x
             r_max = r_min + tile_stride[0] - 1
-            row_count += 1
+     
             col_count = 0
             for y in range (0, self.image_width, tile_stride[1]):
                 c_min = y
                 c_max = c_min + tile_stride[1] - 1
-                col_count += 1
                 image = self._image_reader.get_iterator_requested_tile_data(r_min, r_max, c_min, c_max)
                 yield (row_count, col_count), image
+                col_count += 1
 
+            row_count += 1
 
     """ -------------------- """
     """ -Validation methods- """

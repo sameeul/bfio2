@@ -29,7 +29,7 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path) :
     options->ordered(true);
     options->borderCreatorConstant(0);
     options->cacheCapacity(0,100);
-    options->viewAvailable(0,1);
+    options->viewAvailable(0,10);
     // Create the Fast Loader Graph	
     fast_loader_ = std::make_shared<fl::FastLoaderGraph<fl::DefaultView<uint32_t>>>(std::move(options));
     // Execute the graph
@@ -55,7 +55,13 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileDataByRowCol(size_t
 {
     auto tw = tile_loader_->tileWidth(0);
     auto th = tile_loader_->tileHeight(0);
-    std::shared_ptr<std::vector<uint32_t>> tile_data = std::make_shared<std::vector<uint32_t>>(tw * th);
+	auto iw = tile_loader_->fullWidth(0);
+	auto ih = tile_loader_->fullHeight(0);
+
+	auto actual_tw = iw > (col+1)*tw -1 ? tw : iw - col*tw;
+	auto actual_th = ih > (row+1)*th -1 ? th : ih - row*th;
+
+    std::shared_ptr<std::vector<uint32_t>> tile_data = std::make_shared<std::vector<uint32_t>>(actual_tw * actual_th);
 	fast_loader_->requestView(row, col, 0, 0);
 	const auto &view = fast_loader_->getBlockingResult();
 	auto vw = view->viewWidth();
@@ -63,9 +69,9 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileDataByRowCol(size_t
 	auto vrh = view->radiusHeight();
 	auto view_ptr = view->viewOrigin() + vrh*vw; 
 	auto tile_ptr = tile_data->begin();
-	for (size_t i = 0; i < th; ++i) 
+	for (size_t i = 0; i < actual_th; ++i) 
 	{	
-		std::copy(view_ptr+i*vw+vrw, view_ptr+i*vw+vrw+tw, tile_ptr+i*tw);
+		std::copy(view_ptr+i*vw+vrw, view_ptr+i*vw+vrw+actual_tw, tile_ptr+i*actual_tw);
 	}
 	view->returnToMemoryManager();
     return tile_data;
@@ -120,22 +126,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileDataByIndex(size_t 
 	size_t num_col_tiles = GetColumnTileCount();	
 	size_t row = tile_index/num_col_tiles;
 	size_t col = tile_index%num_col_tiles;
-    auto tw = tile_loader_->tileWidth(0);
-    auto th = tile_loader_->tileHeight(0);
-    std::shared_ptr<std::vector<uint32_t>> tile_data = std::make_shared<std::vector<uint32_t>>(tw*th);
-	fast_loader_->requestView(row, col, 0, 0);
-	const auto &view = fast_loader_->getBlockingResult();
-	auto vw = view->viewWidth();
-	auto vrw = view->radiusWidth();
-	auto vrh = view->radiusHeight();
-	auto view_ptr = view->viewOrigin() + vrh*vw; 
-	auto tile_ptr = tile_data->begin();
-	for (size_t i = 0; i < th; ++i) 
-	{	
-		std::copy(view_ptr+i*vw+vrw, view_ptr+i*vw+vrw+tw, tile_ptr+i*tw);
-	}
-	view->returnToMemoryManager();
-
+	auto tile_data = GetTileDataByRowCol(row, col);
     return tile_data;
 }
 
@@ -159,8 +150,8 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);
-	auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih : index_row_pixel_max;
-	auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw : index_col_pixel_max;
+	auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih-1 : index_row_pixel_max;
+	auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw-1 : index_col_pixel_max;
 	auto top_left_tile = GetTileContainingPixel(index_row_pixel_min, index_col_pixel_min);
 	auto bottom_right_tile = GetTileContainingPixel(index_true_row_pixel_max, index_true_col_pixel_max);
 	auto min_row_index = top_left_tile.first;
@@ -189,7 +180,6 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 	{
 		for (int j = min_col_index; j <= max_col_index; ++j)
 		{
-	//		fast_loader_->requestView(i, j, 0, 0);
 			const auto &view = fast_loader_->getBlockingResult();	
 			// take row slice from local tile and place it in virtual tile
 			// global_x = i*th + local_x;
@@ -232,8 +222,8 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);
-	auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih : index_row_pixel_max;
-	auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw : index_col_pixel_max;
+	auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih-1 : index_row_pixel_max;
+	auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw-1 : index_col_pixel_max;
 	auto top_left_tile = GetTileContainingPixel(index_row_pixel_min, index_col_pixel_min);
 	auto bottom_right_tile = GetTileContainingPixel(index_true_row_pixel_max, index_true_col_pixel_max);
 	auto min_row_index = top_left_tile.first;
@@ -417,8 +407,6 @@ void OmeTiffLoader::SetViewRequests(size_t const tile_height, size_t const tile_
 					fast_loader_->requestView(i, j, 0, 0);
 				}
 			}
-
-
 		}
 	}
 
@@ -433,11 +421,10 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetViewRequests(size_t con
 	// rows are X coordinate (increasing from top to bottom)
 	// cols are Y coordinate (increasing from left to right)
 	// we need to transform from Local Tile Coordinate to Global Pixel Coordiate to Virtual Tile Coordinate
-
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);
-	auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih : index_row_pixel_max;
-	auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw : index_col_pixel_max;
+	auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih-1 : index_row_pixel_max;
+	auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw-1 : index_col_pixel_max;
 	auto top_left_tile = GetTileContainingPixel(index_row_pixel_min, index_col_pixel_min);
 	auto bottom_right_tile = GetTileContainingPixel(index_true_row_pixel_max, index_true_col_pixel_max);
 	auto min_row_index = top_left_tile.first;

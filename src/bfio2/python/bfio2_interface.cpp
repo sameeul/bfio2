@@ -45,38 +45,53 @@ PYBIND11_MODULE(libbfio2, m) {
     .def("get_sample_per_pixel", &OmeTiffLoader::GetSamplesPerPixel)
 
     .def("get_tile_data_2d_by_index",
-        [](OmeTiffLoader& tl, size_t const indexGlobalTile) -> py::array_t<uint32_t> {
-            auto tmp = tl.GetTileDataByIndex(indexGlobalTile);
-            return as_pyarray_shared_2d(tmp, tl.GetTileHeight(), tl.GetTileWidth()) ;;
+        [](OmeTiffLoader& tl, size_t const index_global_tile) -> py::array_t<uint32_t> {
+            auto tmp = tl.GetTileDataByIndex(index_global_tile);
+            auto iw = tl.GetImageWidth();
+            auto ih = tl.GetImageHeight();
+            auto tw = tl.GetTileWidth();
+            auto th = tl.GetTileHeight();
+            size_t num_col_tiles = tl.GetColumnTileCount();	
+	        size_t row = index_global_tile/num_col_tiles;
+	        size_t col = index_global_tile%num_col_tiles;
+            auto actual_tw = iw > (col+1)*tw -1 ? tw : iw - col*tw;
+	        auto actual_th = ih > (row+1)*th -1 ? th : ih - row*th;
+            return as_pyarray_shared_2d(tmp, actual_th, actual_tw) ;;
         }, py::return_value_policy::reference)
 
     .def("get_tile_data_2d_by_row_col",
-        [](OmeTiffLoader& tl, size_t const indexRowGlobalTile, size_t const indexColGlobalTile) -> py::array_t<uint32_t> {
-            auto tmp = tl.GetTileDataByRowCol(indexRowGlobalTile, indexColGlobalTile);
-            return as_pyarray_shared_2d(tmp, tl.GetTileHeight(), tl.GetTileWidth()) ;;
+        [](OmeTiffLoader& tl, size_t const index_row_global_tile, size_t const index_col_global_tile) -> py::array_t<uint32_t> {
+            auto tmp = tl.GetTileDataByRowCol(index_row_global_tile, index_col_global_tile);
+            auto iw = tl.GetImageWidth();
+            auto ih = tl.GetImageHeight();
+            auto tw = tl.GetTileWidth();
+            auto th = tl.GetTileHeight();
+            auto actual_tw = iw > (index_col_global_tile+1)*tw -1 ? tw : iw - index_col_global_tile*tw;
+	        auto actual_th = ih > (index_row_global_tile+1)*th -1 ? th : ih - index_row_global_tile*th;
+            return as_pyarray_shared_2d(tmp, actual_th, actual_tw) ;;
         }, py::return_value_policy::reference)
 
         .def("get_virtual_tile_data_bounding_box_2d",
-        [](OmeTiffLoader& tl, size_t const indexRowMinPixel, size_t const indexRowMaxPixel, size_t const indexColMinPixel, size_t const indexColMaxPixel) -> py::array_t<uint32_t> {
-            auto tmp = tl.GetBoundingBoxVirtualTileData(indexRowMinPixel, indexRowMaxPixel, indexColMinPixel, indexColMaxPixel);
+        [](OmeTiffLoader& tl, size_t const index_row_min_pixel, size_t const index_row_max_pixel, size_t const index_col_min_pixel, size_t const index_col_max_pixel) -> py::array_t<uint32_t> {
+            auto tmp = tl.GetBoundingBoxVirtualTileData(index_row_min_pixel, index_row_max_pixel, index_col_min_pixel, index_col_max_pixel);
             auto ih = tl.GetImageHeight();
 	        auto iw = tl.GetImageWidth();
-	        auto indexTrueRowPixelMax = indexRowMaxPixel > ih ? ih : indexRowMaxPixel;
-	        auto indexTrueColPixelMax = indexColMaxPixel > iw ? iw : indexColMaxPixel;
-            size_t num_rows = indexTrueRowPixelMax - indexRowMinPixel + 1;
-            size_t num_cols = indexTrueColPixelMax - indexColMinPixel + 1;
+	        auto index_true_row_pixel_max = index_row_max_pixel > ih ? ih-1 : index_row_max_pixel;
+	        auto index_true_col_pixel_max = index_col_max_pixel > iw ? iw-1 : index_col_max_pixel;
+            size_t num_rows = index_true_row_pixel_max - index_row_min_pixel + 1;
+            size_t num_cols = index_true_col_pixel_max - index_col_min_pixel + 1;
             return as_pyarray_shared_2d(tmp, num_rows, num_cols) ;
         }, py::return_value_policy::reference)
 
         .def("get_virtual_tile_data_bounding_box_2d_strided",
-        [](OmeTiffLoader& tl, size_t const indexRowMinPixel, size_t const indexRowMaxPixel, size_t const rowStride,  size_t const indexColMinPixel, size_t const indexColMaxPixel, size_t const colStride) -> py::array_t<uint32_t> {
-            auto tmp = tl.GetBoundingBoxVirtualTileDataStrideVersion(indexRowMinPixel, indexRowMaxPixel, rowStride, indexColMinPixel, indexColMaxPixel, colStride);
+        [](OmeTiffLoader& tl, size_t const index_row_min_pixel, size_t const index_row_max_pixel, size_t const row_stride,  size_t const index_col_min_pixel, size_t const index_col_max_pixel, size_t const col_stride) -> py::array_t<uint32_t> {
+            auto tmp = tl.GetBoundingBoxVirtualTileDataStrideVersion(index_row_min_pixel, index_row_max_pixel, row_stride, index_col_min_pixel, index_col_max_pixel, col_stride);
             auto ih = tl.GetImageHeight();
 	        auto iw = tl.GetImageWidth();
-	        auto indexTrueRowPixelMax = indexRowMaxPixel > ih ? ih : indexRowMaxPixel;
-	        auto indexTrueColPixelMax = indexColMaxPixel > iw ? iw : indexColMaxPixel;
-            size_t num_rows = (indexTrueRowPixelMax - indexRowMinPixel)/rowStride+1;
-            size_t num_cols = (indexTrueColPixelMax - indexColMinPixel)/colStride+1;
+	        auto index_true_row_pixel_max = index_row_max_pixel > ih ? ih-1 : index_row_max_pixel;
+	        auto index_true_col_pixel_max = index_col_max_pixel > iw ? iw-1 : index_col_max_pixel;
+            size_t num_rows = (index_true_row_pixel_max - index_row_min_pixel)/row_stride+1;
+            size_t num_cols = (index_true_col_pixel_max - index_col_min_pixel)/col_stride+1;
             return as_pyarray_shared_2d(tmp, num_rows, num_cols) ;
         }, py::return_value_policy::reference)
 
@@ -95,8 +110,8 @@ PYBIND11_MODULE(libbfio2, m) {
             auto tmp = tl.GetViewRequests(index_row_pixel_min, index_row_pixel_max, index_col_pixel_min, index_col_pixel_max);
             auto ih = tl.GetImageHeight();
 	        auto iw = tl.GetImageWidth();
-	        auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih : index_row_pixel_max;
-	        auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw : index_col_pixel_max;
+	        auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih-1 : index_row_pixel_max;
+	        auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw-1 : index_col_pixel_max;
             size_t num_rows = index_true_row_pixel_max - index_row_pixel_min + 1;
             size_t num_cols = index_true_col_pixel_max - index_col_pixel_min + 1;
             return as_pyarray_shared_2d(tmp, num_rows, num_cols) ;
