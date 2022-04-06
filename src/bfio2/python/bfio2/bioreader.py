@@ -75,19 +75,31 @@ class BioReader:
     def tile_width(self):
         raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
+    @property  
     def row_tile_count(self):
         if self._row_tile_count == None:
             self._row_tile_count = self._image_reader.get_row_tile_count()
         return self._row_tile_count
 
+    @row_tile_count.setter
+    def row_tile_count(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
+    @property
     def column_tile_count(self):
         if self._column_tile_count == None:
             self._column_tile_count = self._image_reader.get_column_tile_count()
         return self._column_tile_count
 
+    @column_tile_count.setter
+    def column_tile_count(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
+
     def channel_names(self) :
         pass
 
+    @property
     def physical_size_x(self):
         if self._physical_size_x == None:
             self._physical_size_x = self._image_reader.get_metadata_value("PhysicalSizeX")
@@ -97,6 +109,11 @@ class BioReader:
 
         return (self._physical_size_x, self._physical_size_x_unit)
 
+    @physical_size_x.setter
+    def physical_size_x(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
+    @property
     def physical_size_y(self):
         if self._physical_size_y == None:
             self._physical_size_y = self._image_reader.get_metadata_value("PhysicalSizeY")
@@ -106,9 +123,14 @@ class BioReader:
 
         return (self._physical_size_y, self._physical_size_y_unit)
 
+    @physical_size_y.setter
+    def physical_size_y(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
     def get_physical_size_z(self):
         pass
     
+    @property
     def samples_per_pixel(self):
         #check how to do it for multi channel
         if self._samples_per_pixel == None:
@@ -116,14 +138,28 @@ class BioReader:
 
         return int(self._samples_per_pixel)
 
+    @samples_per_pixel.setter
+    def samples_per_pixel(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
+    @property
     def bits_per_sample(self):
         if self._bits_per_sample == None:
             self._bits_per_sample = self._image_reader.get_bits_per_sample() 
 
         return int(self._bits_per_sample)
-    
+
+    @bits_per_sample.setter
+    def bits_per_sample(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
+    @property
     def bytes_per_pixel(self):
-        return self.bits_per_sample()*self.samples_per_pixel/8
+        return self.bits_per_sample*self.samples_per_pixel/8
+
+    @bytes_per_pixel.setter
+    def bytes_per_pixel(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
     def __getitem__(self, keys):
         slice_items = (self._parse_slice(keys))
@@ -236,20 +272,32 @@ class BioReader:
         # request views
         self._image_reader.send_iterator_view_requests(tile_size[0], tile_size[1], tile_stride[0], tile_stride[1])
         # collect views
-        row_count = 0
-        for x in range(0, self.image_height, tile_stride[0]):
-            r_min = x
-            r_max = r_min + tile_stride[0] - 1
+        tile_count = 0
+        col_per_row = self._image_reader.get_column_tile_count()
+        for data in self._image_reader.__iter__():
+            row_index = int(tile_count/col_per_row)
+            col_index = tile_count%col_per_row
+            yield (row_index, col_index), self._image_reader.get_iterator_requested_tile_data(data[0], data[1], data[2], data[3])
+            tile_count+=1
+        # row_count = 0
+        # for x in range(0, self.image_height, tile_stride[0]):
+        #     r_min = x
+        #     r_max = r_min + tile_stride[0] - 1
      
-            col_count = 0
-            for y in range (0, self.image_width, tile_stride[1]):
-                c_min = y
-                c_max = c_min + tile_stride[1] - 1
-                image = self._image_reader.get_iterator_requested_tile_data(r_min, r_max, c_min, c_max)
-                yield (row_count, col_count), image
-                col_count += 1
+        #     col_count = 0
+        #     for y in range (0, self.image_width, tile_stride[1]):
+        #         c_min = y
+        #         c_max = c_min + tile_stride[1] - 1
+        #         image = self._image_reader.get_iterator_requested_tile_data(r_min, r_max, c_min, c_max)
+        #         yield (row_count, col_count), image
+        #         col_count += 1
 
-            row_count += 1
+        #     row_count += 1
+
+
+    def test_iter(self):
+        for data in self._image_reader.__iter__():
+            yield data
 
     """ -------------------- """
     """ -Validation methods- """

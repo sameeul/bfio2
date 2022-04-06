@@ -115,5 +115,10 @@ PYBIND11_MODULE(libbfio2, m) {
             size_t num_rows = index_true_row_pixel_max - index_row_pixel_min + 1;
             size_t num_cols = index_true_col_pixel_max - index_col_pixel_min + 1;
             return as_pyarray_shared_2d(tmp, num_rows, num_cols) ;
-        }, py::return_value_policy::reference);
+        }, py::return_value_policy::reference)
+        .def("__iter__", [](OmeTiffLoader& tl){ 
+            return py::make_iterator(tl.tile_coordinate_list_.begin(), tl.tile_coordinate_list_.end());
+            }, 
+            py::keep_alive<0, 1>()); // Keep vector alive while iterator is used 
+        ;
 }

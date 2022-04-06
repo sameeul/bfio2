@@ -6,7 +6,8 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path) :
 	xml_metadata_ptr_(nullptr),
 	fast_loader_(nullptr),
 	n_threads_(8),
-	fname_(fname_with_path)
+	fname_(fname_with_path),
+	tile_coordinate_list_(0)
 {
 	if (CheckTileStatus())
 	{
@@ -391,6 +392,7 @@ void OmeTiffLoader::SetViewRequests(size_t const tile_height, size_t const tile_
 
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);
+	tile_coordinate_list_.clear();
 
 	for(size_t x=0; x<ih; x+=row_stride){
 		size_t r_min = x;
@@ -405,6 +407,7 @@ void OmeTiffLoader::SetViewRequests(size_t const tile_height, size_t const tile_
 				for (auto j = min_col_index; j <= max_col_index; ++j)
 				{
 					fast_loader_->requestView(i, j, 0, 0);
+					tile_coordinate_list_.push_back(std::make_tuple(r_min,r_max,c_min,c_max));
 				}
 			}
 		}
