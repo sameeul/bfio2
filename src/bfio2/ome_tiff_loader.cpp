@@ -148,7 +148,7 @@ std::pair<size_t, size_t> OmeTiffLoader::GetTileContainingPixel(size_t const row
 
 std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileData(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const index_col_pixel_min, size_t const index_col_pixel_max,
-																	size_t const index_layer_min, size_t const index_layer_max)
+																	size_t const index_layer_min, size_t const index_layer_max, size_t const layer_stride)
 {
 
 	// Convention 
@@ -177,15 +177,15 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 
 	auto vtw = index_true_col_pixel_max-index_col_pixel_min+1;
 	auto vth = index_true_row_pixel_max-index_row_pixel_min+1;
-	auto vtd = index_true_max_layer-index_true_min_layer+1;
+	auto vtd = (index_true_max_layer-index_true_min_layer)/layer_stride+1;
 
-	std::shared_ptr<std::vector<uint32_t>> virtual_tile_data_ptr = std::make_shared<std::vector<uint32_t>>(vtw * vth * vtd) ;
+	std::shared_ptr<std::vector<uint32_t>> virtual_tile_data = std::make_shared<std::vector<uint32_t>>(vtw * vth * vtd) ;
 
-	for (int k = index_true_min_layer; k<=index_true_max_layer; ++k)
+	for (auto k = index_true_min_layer; k<=index_true_max_layer; k=k+layer_stride)
 	{
-		for (int i = min_row_index; i <= max_row_index; ++i)
+		for (auto i = min_row_index; i <= max_row_index; ++i)
 		{
-			for (int j = min_col_index; j <= max_col_index; ++j)
+			for (auto j = min_col_index; j <= max_col_index; ++j)
 			{
 				fast_loader_->requestView(i, j, k, 0);
 			}
@@ -193,10 +193,10 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 
 	}
 
-	auto virtual_tile_ptr = virtual_tile_data_ptr->begin();
-	for (int k = index_true_min_layer; k<=index_true_max_layer; ++k)
+	auto virtual_tile_data_ptr = virtual_tile_data->begin();
+	size_t virtual_z = 0; 
+	for (int k = index_true_min_layer; k<=index_true_max_layer; k=k+layer_stride)
 	{
-		auto virtual_z = k - index_true_min_layer; 
 		for (int i = min_row_index; i <= max_row_index; ++i)
 		{
 			for (int j = min_col_index; j <= max_col_index; ++j)
@@ -219,20 +219,22 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 				auto view_ptr = view->viewOrigin() + vrh*vw; 
 				for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
 					size_t virtual_x = i*th + local_x - index_row_pixel_min;
-					std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_ptr+virtual_z*vtw*vth+virtual_x*vtw+initial_virtual_y);					
+					std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_ptr+virtual_z*vtw*vth+virtual_x*vtw+initial_virtual_y);					
 				}
 				view->returnToMemoryManager();	
 			}
 		}
+		++virtual_z;
 	}	
 
 
-	return virtual_tile_data_ptr;
+	return virtual_tile_data;
 }
 
 std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileDataStrideVersion(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const row_stride, size_t const index_col_pixel_min, size_t const index_col_pixel_max, 
-                                                                    size_t const col_stride)
+                                                                    size_t const col_stride, size_t const index_layer_min, size_t const index_layer_max,
+                                                                    size_t const layer_stride)
 {
 
 	// Convention 
@@ -242,6 +244,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);
+	auto id = tile_loader_->fullDepth(0);
 	auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih-1 : index_row_pixel_max;
 	auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw-1 : index_col_pixel_max;
 	auto top_left_tile = GetTileContainingPixel(index_row_pixel_min, index_col_pixel_min);
@@ -250,7 +253,8 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 	auto min_col_index = top_left_tile.second;
 	auto max_row_index = bottom_right_tile.first;
 	auto max_col_index = bottom_right_tile.second;
-
+	auto index_true_min_layer = index_layer_min > 0? index_layer_min : 0;
+	auto index_true_max_layer = index_layer_max > id-1? id-1 : index_layer_max;
 	// now loop through each tile, get tile data, fill the virtual tile vector
 
 	auto tw = tile_loader_->tileWidth(0);
@@ -258,71 +262,83 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 
 	auto vtw = (index_true_col_pixel_max-index_col_pixel_min)/col_stride+1;
 	auto vth = (index_true_row_pixel_max-index_row_pixel_min)/row_stride+1;
-	std::shared_ptr<std::vector<uint32_t>> virtual_tile_data = std::make_shared<std::vector<uint32_t>>(vtw * vth);
+	auto vtd = (index_true_max_layer-index_true_min_layer)/layer_stride+1;
+
+	std::shared_ptr<std::vector<uint32_t>> virtual_tile_data = std::make_shared<std::vector<uint32_t>>(vtw * vth * vtd) ;
 	auto virtual_tile_data_ptr = virtual_tile_data->data();
 	auto virtual_tile_data_begin = virtual_tile_data->begin();
-	for (int i = min_row_index; i <= max_row_index; ++i)
-	{
-		for (int j = min_col_index; j <= max_col_index; ++j)
+
+	for (auto k = index_true_min_layer; k<=index_true_max_layer; k=k+layer_stride)
 		{
-			fast_loader_->requestView(i, j, 0, 0);
+		for (auto i = min_row_index; i <= max_row_index; ++i)
+		{
+			for (auto j = min_col_index; j <= max_col_index; ++j)
+			{
+				fast_loader_->requestView(i, j, k, 0);
+			}
 		}
 	}
 
-	for (int i = min_row_index; i <= max_row_index; ++i)
-	{
-		for (int j = min_col_index; j <= max_col_index; ++j)
+	size_t virtual_z=0;
+	for (auto k = index_true_min_layer; k<=index_true_max_layer; k=k+layer_stride)
+	{	
+		for (auto i = min_row_index; i <= max_row_index; ++i)
 		{
-			const auto &view = fast_loader_->getBlockingResult();
-			// take row slice from local tile and place it in virtual tile
-			// global_x = i*th + local_x;
-			// virtual_x = global_x - index_row_pixel_min;
-			// initial_global_y = j*tw + initial_local_y;
-			// initial_virtual_y = initial_global_y - index_col_pixel_min;
-			size_t initial_local_x = index_row_pixel_min > i*th ? index_row_pixel_min-i*th : 0;	
-			// adjust for row stride
-			size_t initial_global_x = i*th + initial_local_x;
-			initial_global_x = AdjustStride(index_row_pixel_min, initial_global_x, row_stride);
-			initial_local_x = initial_global_x - i*th;
-			size_t end_local_x = index_true_row_pixel_max < (i+1)*th ? index_true_row_pixel_max-i*th: th-1;
-
-			size_t initial_local_y = index_col_pixel_min > j*tw ? index_col_pixel_min-j*tw : 0;
-			// adjust for col stride
-			size_t initial_global_y = j*tw + initial_local_y;
-			initial_global_y = AdjustStride(index_col_pixel_min, initial_global_y, col_stride);
-			initial_local_y = initial_global_y - j*tw;			
-			size_t end_local_y = index_true_col_pixel_max < (j+1)*tw ? index_true_col_pixel_max-j*tw : tw-1;
-			size_t initial_virtual_y = j*tw + initial_local_y - index_col_pixel_min;
-
-
-			auto vw = view->viewWidth();
-			auto vrw = view->radiusWidth();
-			auto vrh = view->radiusHeight();
-			auto view_ptr = view->viewOrigin() + vrh*vw; 
-
-			for (size_t local_x=initial_local_x; local_x<=end_local_x; local_x=local_x+row_stride)
+			for (auto j = min_col_index; j <= max_col_index; ++j)
 			{
-				size_t virtual_x = (i*th + local_x - index_row_pixel_min)/row_stride;
-				if (col_stride == 1) 
-				{
+				const auto &view = fast_loader_->getBlockingResult();
+				// take row slice from local tile and place it in virtual tile
+				// global_x = i*th + local_x;
+				// virtual_x = global_x - index_row_pixel_min;
+				// initial_global_y = j*tw + initial_local_y;
+				// initial_virtual_y = initial_global_y - index_col_pixel_min;
+				size_t initial_local_x = index_row_pixel_min > i*th ? index_row_pixel_min-i*th : 0;	
+				// adjust for row stride
+				size_t initial_global_x = i*th + initial_local_x;
+				initial_global_x = AdjustStride(index_row_pixel_min, initial_global_x, row_stride);
+				initial_local_x = initial_global_x - i*th;
+				size_t end_local_x = index_true_row_pixel_max < (i+1)*th ? index_true_row_pixel_max-i*th: th-1;
 
-					std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+virtual_x*vtw+initial_virtual_y);
-				}
-				else 
-				{
-					
+				size_t initial_local_y = index_col_pixel_min > j*tw ? index_col_pixel_min-j*tw : 0;
+				// adjust for col stride
+				size_t initial_global_y = j*tw + initial_local_y;
+				initial_global_y = AdjustStride(index_col_pixel_min, initial_global_y, col_stride);
+				initial_local_y = initial_global_y - j*tw;			
+				size_t end_local_y = index_true_col_pixel_max < (j+1)*tw ? index_true_col_pixel_max-j*tw : tw-1;
+				size_t initial_virtual_y = j*tw + initial_local_y - index_col_pixel_min;
 
-					for (size_t local_y=initial_local_y; local_y<=end_local_y; local_y=local_y+col_stride)
+
+				auto vw = view->viewWidth();
+				auto vrw = view->radiusWidth();
+				auto vrh = view->radiusHeight();
+				auto view_ptr = view->viewOrigin() + vrh*vw; 
+
+				for (size_t local_x=initial_local_x; local_x<=end_local_x; local_x=local_x+row_stride)
+				{
+					size_t virtual_x = (i*th + local_x - index_row_pixel_min)/row_stride;
+					if (col_stride == 1) 
 					{
-						size_t virtual_y = (j*tw + local_y - index_col_pixel_min)/col_stride;
-						// local_data_index = view_ptr+local_x*vw+vrw+local_y;
-						// virtual_data_index = virtual_x*vtw+virtual_y;
-						virtual_tile_data_ptr[virtual_x*vtw+virtual_y] = *(view_ptr+local_x*vw+vrw+local_y);						
+
+						std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+virtual_z*vtw*vth+virtual_x*vtw+initial_virtual_y);
+					}
+					else 
+					{
+						
+
+						for (size_t local_y=initial_local_y; local_y<=end_local_y; local_y=local_y+col_stride)
+						{
+							size_t virtual_y = (j*tw + local_y - index_col_pixel_min)/col_stride;
+							// local_data_index = view_ptr+local_x*vw+vrw+local_y;
+							// virtual_data_index = virtual_z*vtw*vth+virtual_x*vtw+virtual_y;
+							virtual_tile_data_ptr[virtual_z*vtw*vth+virtual_x*vtw+virtual_y] = *(view_ptr+local_x*vw+vrw+local_y);						
+						}
 					}
 				}
+				view->returnToMemoryManager();	
+				
 			}
-			view->returnToMemoryManager();	
 		}
+		++virtual_z;
 	}
 	return virtual_tile_data;
 }

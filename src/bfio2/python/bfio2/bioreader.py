@@ -200,9 +200,9 @@ class BioReader:
             layer_step = 1
 
         if row_step != 1 or col_step != 1:
-            return self._image_reader.get_virtual_tile_data_bounding_box_2d_strided(row_min, row_max, row_step, col_min, col_max, col_step)             
+            return self._image_reader.get_virtual_tile_data_bounding_box_3d_strided(row_min, row_max, row_step, col_min, col_max, col_step, layer_min, layer_max, layer_step)             
         else:
-            return self._image_reader.get_virtual_tile_data_bounding_box_3d(row_min, row_max, col_min, col_max, layer_min, layer_max)
+            return self._image_reader.get_virtual_tile_data_bounding_box_3d(row_min, row_max, col_min, col_max, layer_min, layer_max, layer_step)
 
     def _parse_slice(self,keys):
         # Dimension ordering and index initialization

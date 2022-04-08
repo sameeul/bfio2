@@ -140,7 +140,7 @@ void test5()
     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 
     std::shared_ptr<std::vector<uint32_t>> tileData1 = imgLoader.GetBoundingBoxVirtualTileData(0,1079,0,1023,0,0);
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetBoundingBoxVirtualTileDataStrideVersion(0,1079,1,0,1023,2);
+    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetBoundingBoxVirtualTileDataStrideVersion(0,1079,1,0,1023,2,0,0,1);
     for(int i=0;i<10;i++){
         if (i%2==0){
             if(tileData1->at(i) != tileData->at(i/2)){std::cout<<"not match"<<std::endl;}

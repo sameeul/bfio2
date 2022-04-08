@@ -35,10 +35,11 @@ class OmeTiffLoader{
                                                                     size_t const index_col_pixel_min, size_t const index_col_pixel_max);
         std::shared_ptr<std::vector<uint32_t>> GetBoundingBoxVirtualTileData(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const index_col_pixel_min, size_t const index_col_pixel_max,
-                                                                    size_t const index_layer_min, size_t const index_layer_max);
+                                                                    size_t const index_layer_min, size_t const index_layer_max, size_t const layer_stride=1);
         std::shared_ptr<std::vector<uint32_t>> GetBoundingBoxVirtualTileDataStrideVersion(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const row_stride, size_t const index_col_pixel_min, size_t const index_col_pixel_max, 
-                                                                    size_t const col_stride);
+                                                                    size_t const col_stride, size_t const index_layer_min, size_t const index_layer_max,
+                                                                    size_t const layer_stride);
         size_t GetRowTileCount () const;
         size_t GetColumnTileCount () const;
         size_t GetImageHeight() const ;
