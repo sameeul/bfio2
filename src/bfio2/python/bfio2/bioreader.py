@@ -13,8 +13,10 @@ class BioReader:
             self._image_reader = OmeTiffLoader(file_name)
             self._image_height = self._image_reader.get_image_height()
             self._image_width = self._image_reader.get_image_width()
+            self._image_depth = self._image_reader.get_image_depth()
             self._DIMS['Y'] = self._image_height
             self._DIMS['X'] = self._image_width
+            self._DIMS['Z'] = self._image_depth
         else:
             raise TypeError("Only OMETiff file format is supported")
         
@@ -29,9 +31,9 @@ class BioReader:
         self._row_tile_count = None
         self._column_tile_count = None
     
-    def data(self, row=None, col=None):
+    def data(self, row=None, col=None, layer=None):
         if col != None:
-            return self._image_reader.get_tile_data_2d_by_row_col(row, col)
+            return self._image_reader.get_tile_data_2d_by_row_col_layer(row, col, layer)
         else:
             return self._image_reader.get_tile_data_2d_by_index(row)
 
@@ -51,8 +53,17 @@ class BioReader:
         raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
 
+    @property
+    def image_depth(self):
+        return self._image_depth
+
+    @image_depth.setter
+    def image_depth(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
+
     def image_size(self):
-        return (self._image_width, self._image_height)
+        return (self._image_width, self._image_height, self._image_depth)
 
     @property    
     def tile_height(self):
@@ -165,6 +176,7 @@ class BioReader:
         slice_items = (self._parse_slice(keys))
         X = self._val_xyz(slice_items['X'], 'X')
         Y = self._val_xyz(slice_items['Y'], 'Y')
+        Z = self._val_xyz(slice_items['Z'], 'Z')
 
         row_min = Y[0]
         row_max = Y[1]-1
@@ -172,6 +184,7 @@ class BioReader:
             row_step = Y[2]
         else:
             row_step = 1
+
         col_min = X[0]
         col_max = X[1]-1
         if len(X) == 3:
@@ -179,15 +192,21 @@ class BioReader:
         else:
             col_step = 1
         
+        layer_min = Z[0]
+        layer_max = Z[1]-1
+        if len(X) == 3:
+            layer_step = Z[2]
+        else:
+            layer_step = 1
+
         if row_step != 1 or col_step != 1:
             return self._image_reader.get_virtual_tile_data_bounding_box_2d_strided(row_min, row_max, row_step, col_min, col_max, col_step)             
         else:
-            return self._image_reader.get_virtual_tile_data_bounding_box_2d(row_min, row_max, col_min, col_max)
+            return self._image_reader.get_virtual_tile_data_bounding_box_3d(row_min, row_max, col_min, col_max, layer_min, layer_max)
 
     def _parse_slice(self,keys):
-        
         # Dimension ordering and index initialization
-        dims = 'YX'
+        dims = 'YXZ'
         ind = {d:None for d in dims}
         
         # If an empty slice, load the whole image
@@ -201,9 +220,9 @@ class BioReader:
         # If not an empty slice, parse the key tuple
         else:
             
-            # At most, 2 indices can be indicated
-            if len(keys) > 2:
-                raise ValueError('Found {} indices, but at most 2 indices may be supplied.'.format(len(keys)))
+            # At most, 3 indices can be indicated
+            if len(keys) > 3:
+                raise ValueError('Found {} indices, but at most 3 indices may be supplied.'.format(len(keys)))
             
             # If the first key is an ellipsis, read backwards
             if keys[0] == Ellipsis:
@@ -223,24 +242,24 @@ class BioReader:
                     stop = getattr(self,dim) if key.stop == None else key.stop
                     
                     # For CT dimensions, generate a list from slices
-                    if dim in 'XY':
+                    if dim in 'XYZ':
                         step = 1 if key.step is None else key.step
-                        stop = min(self._DIMS[dim]-1, key.stop)
                         ind[dim] = [start,stop, step]
-                        
+
                 elif key==Ellipsis:
                     if dims.find(dim)+1 < len(keys):
                         raise ValueError('Ellipsis may only be used in the first or last index.')
                     
                 elif isinstance(key,(int,tuple,list)) or numpy.issubdtype(key,numpy.integer):
                     # Only the last three dimensions can use int, tuple, or list indexing
-                    if dim in 'XY':
+                    if dim in 'XYZ':
                         if isinstance(key,int) or numpy.issubdtype(key,numpy.integer):
                             ind[dim] = [int(key),int(key)+1]
                     else:
                         raise ValueError('The index in position {} must be a slice type.'.format(dims.find(dim)))
                 else:
                     raise ValueError('Did not recognize indexing value of type: {}'.format(type(key)))
+
         return ind
 
     def __call__(self, tile_size, tile_stride=None) :
@@ -279,20 +298,6 @@ class BioReader:
             col_index = tile_count%col_per_row
             yield (row_index, col_index), self._image_reader.get_iterator_requested_tile_data(data[0], data[1], data[2], data[3])
             tile_count+=1
-        # row_count = 0
-        # for x in range(0, self.image_height, tile_stride[0]):
-        #     r_min = x
-        #     r_max = r_min + tile_stride[0] - 1
-     
-        #     col_count = 0
-        #     for y in range (0, self.image_width, tile_stride[1]):
-        #         c_min = y
-        #         c_max = c_min + tile_stride[1] - 1
-        #         image = self._image_reader.get_iterator_requested_tile_data(r_min, r_max, c_min, c_max)
-        #         yield (row_count, col_count), image
-        #         col_count += 1
-
-        #     row_count += 1
 
 
     def test_iter(self):
@@ -304,7 +309,7 @@ class BioReader:
     """ -------------------- """
     
     def _val_xyz(self, xyz, axis):
-        assert axis in 'XY'
+        assert axis in 'XYZ'
         if xyz == None:
             xyz = [0,self._DIMS[axis]-1]
         else:

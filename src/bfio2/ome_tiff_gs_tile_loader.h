@@ -14,8 +14,10 @@ template<class DataType>
   size_t
       full_height_ = 0,           ///< Full height in pixel
       full_width_ = 0,            ///< Full width in pixel
+      full_depth_ = 0,           ///< Full depth in pixel
       tile_height_ = 0,            ///< Tile height
-      tile_width_ = 0;             ///< Tile width
+      tile_width_ = 0,           ///< Tile width
+      tile_depth_ = 0;          // Tile Depth
 
   short
       sample_format_ = 0,          ///< Sample format as defined by libtiff
@@ -47,7 +49,8 @@ template<class DataType>
       TIFFGetField(tiff_, TIFFTAG_SAMPLESPERPIXEL, &(this->samples_per_pixel_));
       TIFFGetField(tiff_, TIFFTAG_BITSPERSAMPLE, &(this->bits_per_sample_));
       TIFFGetField(tiff_, TIFFTAG_SAMPLEFORMAT, &(this->sample_format_));
-
+      full_depth_ = TIFFNumberOfDirectories(tiff_);  
+      tile_depth_ = 1;
       // Test if the file is greyscale
       if (samples_per_pixel_ != 1) {
         std::stringstream message;
@@ -73,11 +76,12 @@ template<class DataType>
   /// @param index_col_global_tile Tile column index
   /// @param level Tile's level
   void loadTileFromFile(std::shared_ptr<std::vector<DataType>> tile,
-                        size_t index_row_global_tile, size_t index_col_global_tile, [[maybe_unused]] size_t index_layer_global_tile,
+                        size_t index_row_global_tile, size_t index_col_global_tile, size_t index_layer_global_tile,
                         [[maybe_unused]] size_t level) override {
     tdata_t tiff_tile = nullptr;
     tiff_tile = _TIFFmalloc(TIFFTileSize(tiff_));
-    TIFFReadTile(tiff_, tiff_tile, index_col_global_tile * tile_width_, index_row_global_tile * tile_height_, 0, 0);
+    TIFFSetDirectory(tiff_, index_layer_global_tile);
+    TIFFReadTile(tiff_, tiff_tile, index_col_global_tile * tile_width_, index_row_global_tile * tile_height_, index_layer_global_tile, 0);
     std::stringstream message;
     switch (sample_format_) {
       case 1 :
@@ -152,6 +156,7 @@ template<class DataType>
   /// @param level Tiff level [not used]
   /// @return Full width
   [[nodiscard]] size_t fullWidth([[maybe_unused]] size_t level) const override { return full_width_; }
+  [[nodiscard]] size_t fullDepth([[maybe_unused]] size_t level) const override { return full_depth_; }
   /// @brief Tiff tile width
   /// @param level Tiff level [not used]
   /// @return Tile width
@@ -160,6 +165,7 @@ template<class DataType>
   /// @param level Tiff level [not used]
   /// @return Tile height
   [[nodiscard]] size_t tileHeight([[maybe_unused]] size_t level) const override { return tile_height_; }
+  [[nodiscard]] size_t tileDepth([[maybe_unused]] size_t level) const override { return tile_depth_; }
   /// @brief Tiff bits per sample
   /// @return Size of a sample in bits
   [[nodiscard]] short bitsPerSample() const override { return bits_per_sample_; }

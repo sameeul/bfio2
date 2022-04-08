@@ -25,6 +25,15 @@ inline py::array_t<typename Sequence::value_type> as_pyarray_shared_2d(std::shar
  
 }
 
+template <typename Sequence>
+inline py::array_t<typename Sequence::value_type> as_pyarray_shared_3d(std::shared_ptr<Sequence> seq_ptr, size_t num_rows, size_t num_cols, size_t num_layers) {
+    auto size = seq_ptr->size();
+    auto data = seq_ptr->data();
+    auto capsule = py::capsule(new auto (seq_ptr), [](void *p) {delete reinterpret_cast<decltype(seq_ptr)*>(p);});
+    return py::array(size, data, capsule).reshape({num_layers, num_rows, num_cols});
+ 
+}
+
 PYBIND11_MODULE(libbfio2, m) {
   py::class_<OmeTiffLoader, std::shared_ptr<OmeTiffLoader>>(m, "OmeTiffLoader")
     .def(py::init<const std::string &>())
@@ -32,9 +41,13 @@ PYBIND11_MODULE(libbfio2, m) {
 
     .def("get_image_width", &OmeTiffLoader::GetImageWidth)
 
+    .def("get_image_depth", &OmeTiffLoader::GetImageDepth)
+
     .def("get_tile_height", &OmeTiffLoader::GetTileHeight)
 
     .def("get_tile_width", &OmeTiffLoader::GetTileWidth)
+
+    .def("get_tile_depth", &OmeTiffLoader::GetTileDepth)
 
     .def("get_row_tile_count", &OmeTiffLoader::GetRowTileCount)
 
@@ -59,9 +72,9 @@ PYBIND11_MODULE(libbfio2, m) {
             return as_pyarray_shared_2d(tmp, actual_th, actual_tw) ;;
         }, py::return_value_policy::reference)
 
-    .def("get_tile_data_2d_by_row_col",
-        [](OmeTiffLoader& tl, size_t const index_row_global_tile, size_t const index_col_global_tile) -> py::array_t<uint32_t> {
-            auto tmp = tl.GetTileDataByRowCol(index_row_global_tile, index_col_global_tile);
+    .def("get_tile_data_2d_by_row_col_layer",
+        [](OmeTiffLoader& tl, size_t const index_row_global_tile, size_t const index_col_global_tile, size_t const index_layer_global_tile) -> py::array_t<uint32_t> {
+            auto tmp = tl.GetTileDataByRowColLayer(index_row_global_tile, index_col_global_tile, index_layer_global_tile);
             auto iw = tl.GetImageWidth();
             auto ih = tl.GetImageHeight();
             auto tw = tl.GetTileWidth();
@@ -71,16 +84,32 @@ PYBIND11_MODULE(libbfio2, m) {
             return as_pyarray_shared_2d(tmp, actual_th, actual_tw) ;;
         }, py::return_value_policy::reference)
 
-        .def("get_virtual_tile_data_bounding_box_2d",
-        [](OmeTiffLoader& tl, size_t const index_row_min_pixel, size_t const index_row_max_pixel, size_t const index_col_min_pixel, size_t const index_col_max_pixel) -> py::array_t<uint32_t> {
-            auto tmp = tl.GetBoundingBoxVirtualTileData(index_row_min_pixel, index_row_max_pixel, index_col_min_pixel, index_col_max_pixel);
+        // .def("get_virtual_tile_data_bounding_box_2d",
+        // [](OmeTiffLoader& tl, size_t const index_row_min_pixel, size_t const index_row_max_pixel, size_t const index_col_min_pixel, size_t const index_col_max_pixel) -> py::array_t<uint32_t> {
+        //     auto tmp = tl.GetBoundingBoxVirtualTileData(index_row_min_pixel, index_row_max_pixel, index_col_min_pixel, index_col_max_pixel);
+        //     auto ih = tl.GetImageHeight();
+	    //     auto iw = tl.GetImageWidth();
+	    //     auto index_true_row_pixel_max = index_row_max_pixel > ih ? ih-1 : index_row_max_pixel;
+	    //     auto index_true_col_pixel_max = index_col_max_pixel > iw ? iw-1 : index_col_max_pixel;
+        //     size_t num_rows = index_true_row_pixel_max - index_row_min_pixel + 1;
+        //     size_t num_cols = index_true_col_pixel_max - index_col_min_pixel + 1;
+        //     return as_pyarray_shared_2d(tmp, num_rows, num_cols) ;
+        // }, py::return_value_policy::reference)
+
+        .def("get_virtual_tile_data_bounding_box_3d",
+        [](OmeTiffLoader& tl, size_t const index_row_min_pixel, size_t const index_row_max_pixel, size_t const index_col_min_pixel, size_t const index_col_max_pixel, size_t const index_layer_min, size_t const index_layer_max) -> py::array_t<uint32_t> {
+            auto tmp = tl.GetBoundingBoxVirtualTileData(index_row_min_pixel, index_row_max_pixel, index_col_min_pixel, index_col_max_pixel, index_layer_min, index_layer_max);
             auto ih = tl.GetImageHeight();
 	        auto iw = tl.GetImageWidth();
+            auto id = tl.GetImageDepth();
+            auto index_true_min_layer = index_layer_min > 0? index_layer_min : 0;
+	        auto index_true_max_layer = index_layer_max > id-1? id-1 : index_layer_max;
 	        auto index_true_row_pixel_max = index_row_max_pixel > ih ? ih-1 : index_row_max_pixel;
 	        auto index_true_col_pixel_max = index_col_max_pixel > iw ? iw-1 : index_col_max_pixel;
             size_t num_rows = index_true_row_pixel_max - index_row_min_pixel + 1;
             size_t num_cols = index_true_col_pixel_max - index_col_min_pixel + 1;
-            return as_pyarray_shared_2d(tmp, num_rows, num_cols) ;
+            size_t num_layers = index_true_max_layer - index_true_min_layer + 1;
+            return as_pyarray_shared_3d(tmp, num_rows, num_cols, num_layers) ;
         }, py::return_value_policy::reference)
 
         .def("get_virtual_tile_data_bounding_box_2d_strided",

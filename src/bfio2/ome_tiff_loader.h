@@ -29,10 +29,13 @@ class OmeTiffLoader{
         OmeTiffLoader(const std::string &fNameWithPath);
         ~OmeTiffLoader();
  
-        std::shared_ptr<std::vector<uint32_t>> GetTileDataByRowCol(size_t const row, size_t const col);
+        std::shared_ptr<std::vector<uint32_t>> GetTileDataByRowColLayer(size_t const row, size_t const col, size_t const layer);
         std::shared_ptr<std::vector<uint32_t>> GetTileDataByIndex(size_t const tile_index);
         std::shared_ptr<std::vector<uint32_t>> GetBoundingBoxVirtualTileData(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const index_col_pixel_min, size_t const index_col_pixel_max);
+        std::shared_ptr<std::vector<uint32_t>> GetBoundingBoxVirtualTileData(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
+                                                                    size_t const index_col_pixel_min, size_t const index_col_pixel_max,
+                                                                    size_t const index_layer_min, size_t const index_layer_max);
         std::shared_ptr<std::vector<uint32_t>> GetBoundingBoxVirtualTileDataStrideVersion(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const row_stride, size_t const index_col_pixel_min, size_t const index_col_pixel_max, 
                                                                     size_t const col_stride);
@@ -40,8 +43,10 @@ class OmeTiffLoader{
         size_t GetColumnTileCount () const;
         size_t GetImageHeight() const ;
         size_t GetImageWidth () const ;
+        size_t GetImageDepth () const ;
         size_t GetTileHeight () const ;
         size_t GetTileWidth () const ;
+        size_t GetTileDepth () const ;
         short GetSamplesPerPixel () const ;
         short GetBitsPerSamples () const ;
         std::pair<size_t, size_t> GetTileContainingPixel(size_t const row_pixel_index, size_t const col_pixel_index) const;

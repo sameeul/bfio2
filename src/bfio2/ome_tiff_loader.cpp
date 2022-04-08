@@ -49,21 +49,24 @@ size_t OmeTiffLoader::GetRowTileCount() const {return tile_loader_->numberTileHe
 size_t OmeTiffLoader::GetColumnTileCount() const {return tile_loader_->numberTileWidth();}
 size_t OmeTiffLoader::GetImageHeight() const {return tile_loader_->fullHeight(0);}
 size_t OmeTiffLoader::GetImageWidth() const {return tile_loader_->fullWidth(0);}
+size_t OmeTiffLoader::GetImageDepth() const {return tile_loader_->fullDepth(0);}
 size_t OmeTiffLoader::GetTileHeight() const {return tile_loader_->tileHeight(0);}
 size_t OmeTiffLoader::GetTileWidth() const {return tile_loader_->tileWidth(0);}
+size_t OmeTiffLoader::GetTileDepth() const {return tile_loader_->tileDepth(0);}
 
-std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileDataByRowCol(size_t const row, size_t const col)
+std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileDataByRowColLayer(size_t const row, size_t const col, size_t const layer)
 {
     auto tw = tile_loader_->tileWidth(0);
     auto th = tile_loader_->tileHeight(0);
+	auto td = tile_loader_->tileDepth(0);
 	auto iw = tile_loader_->fullWidth(0);
 	auto ih = tile_loader_->fullHeight(0);
 
 	auto actual_tw = iw > (col+1)*tw -1 ? tw : iw - col*tw;
 	auto actual_th = ih > (row+1)*th -1 ? th : ih - row*th;
 
-    std::shared_ptr<std::vector<uint32_t>> tile_data = std::make_shared<std::vector<uint32_t>>(actual_tw * actual_th);
-	fast_loader_->requestView(row, col, 0, 0);
+    std::shared_ptr<std::vector<uint32_t>> tile_data = std::make_shared<std::vector<uint32_t>>(actual_tw * actual_th * td);
+	fast_loader_->requestView(row, col, layer, 0);
 	const auto &view = fast_loader_->getBlockingResult();
 	auto vw = view->viewWidth();
 	auto vrw = view->radiusWidth();
@@ -125,9 +128,12 @@ bool OmeTiffLoader::CheckTileStatus() const
 std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileDataByIndex(size_t const tile_index)
 {
 	size_t num_col_tiles = GetColumnTileCount();	
-	size_t row = tile_index/num_col_tiles;
-	size_t col = tile_index%num_col_tiles;
-	auto tile_data = GetTileDataByRowCol(row, col);
+	size_t num_row_tiles = GetRowTileCount();
+	size_t layer = tile_index/(num_col_tiles*num_row_tiles);
+	size_t tile_index_2d = tile_index%(num_col_tiles*num_row_tiles); 
+	size_t row = tile_index_2d/num_col_tiles;
+	size_t col = tile_index_2d%num_col_tiles;
+	auto tile_data = GetTileDataByRowColLayer(row, col, layer);
     return tile_data;
 }
 
@@ -141,7 +147,8 @@ std::pair<size_t, size_t> OmeTiffLoader::GetTileContainingPixel(size_t const row
 }
 
 std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileData(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
-                                                                    size_t const index_col_pixel_min, size_t const index_col_pixel_max)
+                                                                    size_t const index_col_pixel_min, size_t const index_col_pixel_max,
+																	size_t const index_layer_min, size_t const index_layer_max)
 {
 
 	// Convention 
@@ -151,6 +158,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);
+	auto id = tile_loader_->fullDepth(0);
 	auto index_true_row_pixel_max = index_row_pixel_max > ih ? ih-1 : index_row_pixel_max;
 	auto index_true_col_pixel_max = index_col_pixel_max > iw ? iw-1 : index_col_pixel_max;
 	auto top_left_tile = GetTileContainingPixel(index_row_pixel_min, index_col_pixel_min);
@@ -159,6 +167,8 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 	auto min_col_index = top_left_tile.second;
 	auto max_row_index = bottom_right_tile.first;
 	auto max_col_index = bottom_right_tile.second;
+	auto index_true_min_layer = index_layer_min > 0? index_layer_min : 0;
+	auto index_true_max_layer = index_layer_max > id-1? id-1 : index_layer_max;
 
 	// now loop through each tile, get tile data, fill the virtual tile vector
 
@@ -167,45 +177,54 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetBoundingBoxVirtualTileD
 
 	auto vtw = index_true_col_pixel_max-index_col_pixel_min+1;
 	auto vth = index_true_row_pixel_max-index_row_pixel_min+1;
-	std::shared_ptr<std::vector<uint32_t>> virtual_tile_data_ptr = std::make_shared<std::vector<uint32_t>>(vtw * vth);
+	auto vtd = index_true_max_layer-index_true_min_layer+1;
 
-	for (int i = min_row_index; i <= max_row_index; ++i)
+	std::shared_ptr<std::vector<uint32_t>> virtual_tile_data_ptr = std::make_shared<std::vector<uint32_t>>(vtw * vth * vtd) ;
+
+	for (int k = index_true_min_layer; k<=index_true_max_layer; ++k)
 	{
-		for (int j = min_col_index; j <= max_col_index; ++j)
+		for (int i = min_row_index; i <= max_row_index; ++i)
 		{
-			fast_loader_->requestView(i, j, 0, 0);
-		}
-	}
-
-	for (int i = min_row_index; i <= max_row_index; ++i)
-	{
-		for (int j = min_col_index; j <= max_col_index; ++j)
-		{
-			const auto &view = fast_loader_->getBlockingResult();	
-			// take row slice from local tile and place it in virtual tile
-			// global_x = i*th + local_x;
-			// virtual_x = global_x - index_row_pixel_min;
-			// initial_global_y = j*tw + initial_local_y;
-			// initial_virtual_y = initial_global_y - index_col_pixel_min;
-			size_t initial_local_x = index_row_pixel_min > i*th ? index_row_pixel_min-i*th : 0;	
-			size_t end_local_x = index_true_row_pixel_max < (i+1)*th ? index_true_row_pixel_max-i*th: th-1;
-			size_t initial_local_y = index_col_pixel_min > j*tw ? index_col_pixel_min-j*tw : 0;
-			size_t end_local_y = index_true_col_pixel_max < (j+1)*tw ? index_true_col_pixel_max-j*tw : tw-1;
-			size_t initial_virtual_y = j*tw + initial_local_y - index_col_pixel_min;
-
-			auto vw = view->viewWidth();
-			auto vrw = view->radiusWidth();
-			auto vrh = view->radiusHeight();
-			auto view_ptr = view->viewOrigin() + vrh*vw; 
-			auto virtual_tile_ptr = virtual_tile_data_ptr->begin();
-			for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
-				size_t virtual_x = i*th + local_x - index_row_pixel_min;
-				std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_ptr+virtual_x*vtw+initial_virtual_y);					
+			for (int j = min_col_index; j <= max_col_index; ++j)
+			{
+				fast_loader_->requestView(i, j, k, 0);
 			}
-			view->returnToMemoryManager();	
 		}
+
 	}
-	
+
+	auto virtual_tile_ptr = virtual_tile_data_ptr->begin();
+	for (int k = index_true_min_layer; k<=index_true_max_layer; ++k)
+	{
+		auto virtual_z = k - index_true_min_layer; 
+		for (int i = min_row_index; i <= max_row_index; ++i)
+		{
+			for (int j = min_col_index; j <= max_col_index; ++j)
+			{
+				const auto &view = fast_loader_->getBlockingResult();	
+				// take row slice from local tile and place it in virtual tile
+				// global_x = i*th + local_x;
+				// virtual_x = global_x - index_row_pixel_min;
+				// initial_global_y = j*tw + initial_local_y;
+				// initial_virtual_y = initial_global_y - index_col_pixel_min;
+				size_t initial_local_x = index_row_pixel_min > i*th ? index_row_pixel_min-i*th : 0;	
+				size_t end_local_x = index_true_row_pixel_max < (i+1)*th ? index_true_row_pixel_max-i*th: th-1;
+				size_t initial_local_y = index_col_pixel_min > j*tw ? index_col_pixel_min-j*tw : 0;
+				size_t end_local_y = index_true_col_pixel_max < (j+1)*tw ? index_true_col_pixel_max-j*tw : tw-1;
+				size_t initial_virtual_y = j*tw + initial_local_y - index_col_pixel_min;
+
+				auto vw = view->viewWidth();
+				auto vrw = view->radiusWidth();
+				auto vrh = view->radiusHeight();
+				auto view_ptr = view->viewOrigin() + vrh*vw; 
+				for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
+					size_t virtual_x = i*th + local_x - index_row_pixel_min;
+					std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_ptr+virtual_z*vtw*vth+virtual_x*vtw+initial_virtual_y);					
+				}
+				view->returnToMemoryManager();	
+			}
+		}
+	}	
 
 
 	return virtual_tile_data_ptr;
