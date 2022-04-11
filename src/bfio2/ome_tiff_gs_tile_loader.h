@@ -52,11 +52,11 @@ template<class DataType>
       full_depth_ = TIFFNumberOfDirectories(tiff_);  
       tile_depth_ = 1;
       // Test if the file is greyscale
-      if (samples_per_pixel_ != 1) {
-        std::stringstream message;
-        message << "Tile Loader ERROR: The file is not greyscale: SamplesPerPixel = " << samples_per_pixel_ << ".";
-        throw (std::runtime_error(message.str()));
-      }
+      // if (samples_per_pixel_ != 1) {
+      //   std::stringstream message;
+      //   message << "Tile Loader ERROR: The file is not greyscale: SamplesPerPixel = " << samples_per_pixel_ << ".";
+      //   throw (std::runtime_error(message.str()));
+      // }
       // Interpret undefined data format as unsigned integer data
       if (sample_format_ < 1 || sample_format_ > 3) { sample_format_ = 1; }
     } else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
@@ -173,7 +173,11 @@ template<class DataType>
   /// @brief Level accessor
   /// @return 1
   [[nodiscard]] size_t numberPyramidLevels() const override { return 1; }
-
+  /// \brief Getter to the number of channels (default 1)
+  /// \return Number of pixel's channels
+  [[nodiscard]] virtual size_t numberChannels() const {
+    return samples_per_pixel_;
+  }
  private:
   /// @brief Private function to copy and cast the values
   /// @tparam FileType Type inside the file
@@ -181,7 +185,7 @@ template<class DataType>
   /// @param dest Piece of memory to fill
   template<typename FileType>
   void loadTile(tdata_t src, std::shared_ptr<std::vector<DataType>> &dest) {
-    for (size_t i = 0; i < tile_height_ * tile_width_; ++i) { dest->data()[i] = (DataType) ((FileType *) (src))[i]; }
+    for (size_t i = 0; i < tile_height_ * tile_width_ * samples_per_pixel_; ++i) { dest->data()[i] = (DataType) ((FileType *) (src))[i]; }
   }
 
 };

@@ -72,9 +72,9 @@ PYBIND11_MODULE(libbfio2, m) {
             return as_pyarray_shared_2d(tmp, actual_th, actual_tw) ;;
         }, py::return_value_policy::reference)
 
-    .def("get_tile_data_2d_by_row_col_layer",
-        [](OmeTiffLoader& tl, size_t const index_row_global_tile, size_t const index_col_global_tile, size_t const index_layer_global_tile) -> py::array_t<uint32_t> {
-            auto tmp = tl.GetTileDataByRowColLayer(index_row_global_tile, index_col_global_tile, index_layer_global_tile);
+    .def("get_tile_data_2d_by_row_col_layer_channel",
+        [](OmeTiffLoader& tl, size_t const index_row_global_tile, size_t const index_col_global_tile, size_t const index_layer_global_tile, size_t const index_channel) -> py::array_t<uint32_t> {
+            auto tmp = tl.GetTileData(index_row_global_tile, index_col_global_tile, index_layer_global_tile, index_channel);
             auto iw = tl.GetImageWidth();
             auto ih = tl.GetImageHeight();
             auto tw = tl.GetTileWidth();

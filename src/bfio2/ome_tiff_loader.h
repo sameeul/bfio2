@@ -29,7 +29,7 @@ class OmeTiffLoader{
         OmeTiffLoader(const std::string &fNameWithPath);
         ~OmeTiffLoader();
  
-        std::shared_ptr<std::vector<uint32_t>> GetTileDataByRowColLayer(size_t const row, size_t const col, size_t const layer);
+        std::shared_ptr<std::vector<uint32_t>> GetTileData(size_t const row, size_t const col, size_t const layer=0, size_t const channel=0);
         std::shared_ptr<std::vector<uint32_t>> GetTileDataByIndex(size_t const tile_index);
         std::shared_ptr<std::vector<uint32_t>> GetBoundingBoxVirtualTileData(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const index_col_pixel_min, size_t const index_col_pixel_max);

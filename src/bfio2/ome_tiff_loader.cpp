@@ -54,14 +54,14 @@ size_t OmeTiffLoader::GetTileHeight() const {return tile_loader_->tileHeight(0);
 size_t OmeTiffLoader::GetTileWidth() const {return tile_loader_->tileWidth(0);}
 size_t OmeTiffLoader::GetTileDepth() const {return tile_loader_->tileDepth(0);}
 
-std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileDataByRowColLayer(size_t const row, size_t const col, size_t const layer)
+std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileData(size_t const row, size_t const col, size_t const layer, size_t const channel)
 {
     auto tw = tile_loader_->tileWidth(0);
     auto th = tile_loader_->tileHeight(0);
 	auto td = tile_loader_->tileDepth(0);
 	auto iw = tile_loader_->fullWidth(0);
 	auto ih = tile_loader_->fullHeight(0);
-
+	auto sample_per_pixel = tile_loader_->samplePerPixel();
 	auto actual_tw = iw > (col+1)*tw -1 ? tw : iw - col*tw;
 	auto actual_th = ih > (row+1)*th -1 ? th : ih - row*th;
 
@@ -71,12 +71,16 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileDataByRowColLayer(s
 	auto vw = view->viewWidth();
 	auto vrw = view->radiusWidth();
 	auto vrh = view->radiusHeight();
-	auto view_ptr = view->viewOrigin() + vrh*vw; 
-	auto tile_ptr = tile_data->begin();
+	auto view_ptr = view->viewOrigin() + vrh*vw*sample_per_pixel; 
+	auto tile_ptr = tile_data->data();
 	for (size_t i = 0; i < actual_th; ++i) 
 	{	
-		std::copy(view_ptr+i*vw+vrw, view_ptr+i*vw+vrw+actual_tw, tile_ptr+i*actual_tw);
+		for(size_t j = 0; j < actual_tw; ++j)
+		{
+			tile_ptr[i*actual_tw+j] = *(view_ptr+(i*vw+vrw+j)*sample_per_pixel+channel);
+		}
 	}
+	
 	view->returnToMemoryManager();
     return tile_data;
 }
@@ -133,7 +137,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileDataByIndex(size_t 
 	size_t tile_index_2d = tile_index%(num_col_tiles*num_row_tiles); 
 	size_t row = tile_index_2d/num_col_tiles;
 	size_t col = tile_index_2d%num_col_tiles;
-	auto tile_data = GetTileDataByRowColLayer(row, col, layer);
+	auto tile_data = GetTileData(row, col, layer);
     return tile_data;
 }
 

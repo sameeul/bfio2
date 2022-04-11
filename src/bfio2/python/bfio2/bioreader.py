@@ -31,9 +31,9 @@ class BioReader:
         self._row_tile_count = None
         self._column_tile_count = None
     
-    def data(self, row=None, col=None, layer=None):
+    def data(self, row=None, col=None, layer=None, channel=None):
         if col != None:
-            return self._image_reader.get_tile_data_2d_by_row_col_layer(row, col, layer)
+            return self._image_reader.get_tile_data_2d_by_row_col_layer_channel(row, col, layer, channel)
         else:
             return self._image_reader.get_tile_data_2d_by_index(row)
 
