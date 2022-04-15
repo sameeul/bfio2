@@ -33,19 +33,19 @@ void test1()
     auto numColTiles = imgLoader.GetColumnTileCount();  
     auto start = std::chrono::steady_clock::now(); 
 
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileData(0,0,0);
+    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileData(0,0,0,0);
     size_t sum = 0;
     sum += partial_sum(tileData, 500, 1023,700,1023, 1024);
-    tileData = imgLoader.GetTileData(0,1,0);
+    tileData = imgLoader.GetTileData(0,1,0,0);
     sum += partial_sum(tileData, 500, 1023, 0,1070-1024, 56);
     tileData = imgLoader.GetTileData(1,0,0);
     sum += partial_sum(tileData, 0, 1050-1024,700,1023, 1024);
-    tileData = imgLoader.GetTileData(1,1,0);
+    tileData = imgLoader.GetTileData(1,1,0,0);
     sum += partial_sum(tileData, 0, 1050-1024,0,1070-1024,56);
     
     std::cout << "Manual Total :" << sum << std::endl;
 
-    auto vTileData = imgLoader.GetBoundingBoxVirtualTileData(500,1050, 700, 1070, 0, 0);
+    auto vTileData = imgLoader.GetVirtualTileData(Seq(500,1051), Seq(700, 1071), Seq(0,0), Seq(0,0) ,Seq(0,0));
     size_t count = 0;
     sum = 0;
     for (auto x: *vTileData){
@@ -74,7 +74,7 @@ void test2()
    
     std::cout << "Manual Total :" << sum << std::endl;
 
-    auto vTileData = imgLoader.GetBoundingBoxVirtualTileData(0,100, 0, 100, 0, 0);
+    auto vTileData = imgLoader.GetVirtualTileData(Seq(0,101), Seq(0, 101), Seq(0,0), Seq(0,0) ,Seq(0,0));
     size_t count = 0;
     sum = 0;
     for (auto x: *vTileData){
@@ -102,7 +102,7 @@ void test3()
    
     std::cout << "Manual Total :" << sum << std::endl;
 
-    auto vTileData = imgLoader.GetBoundingBoxVirtualTileData(0,1023, 0, 1023, 0, 0);
+    auto vTileData = imgLoader.GetVirtualTileData(Seq(0,1024), Seq(0, 1024), Seq(0,0), Seq(0,0) ,Seq(0,0));
     size_t count = 0;
     sum = 0;
     for (auto x: *vTileData){
@@ -134,22 +134,22 @@ void test4()
 
 }
 
-void test5()
-{
-    std::cout<<"Test 5 - Virtual Tile Stride" <<std::endl;
-    OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+// void test5()
+// {
+//     std::cout<<"Test 5 - Virtual Tile Stride" <<std::endl;
+//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 
-    std::shared_ptr<std::vector<uint32_t>> tileData1 = imgLoader.GetBoundingBoxVirtualTileData(0,1079,0,1023,0,0);
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetBoundingBoxVirtualTileDataStrideVersion(0,1079,1,0,1023,2,0,0,1);
-    for(int i=0;i<10;i++){
-        if (i%2==0){
-            if(tileData1->at(i) != tileData->at(i/2)){std::cout<<"not match"<<std::endl;}
-        }
-    }
-    size_t sum1 = std::accumulate(tileData->begin(), tileData->end(), 0);
-    size_t sum2 = std::accumulate(tileData1->begin(), tileData1->end(), 0);
-    std::cout << sum1 << " " << sum2<<std::endl;
-}
+//     std::shared_ptr<std::vector<uint32_t>> tileData1 = imgLoader.GetBoundingBoxVirtualTileData(0,1079,0,1023,0,0);
+//     std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetBoundingBoxVirtualTileDataStrideVersion(0,1079,1,0,1023,2,0,0,1);
+//     for(int i=0;i<10;i++){
+//         if (i%2==0){
+//             if(tileData1->at(i) != tileData->at(i/2)){std::cout<<"not match"<<std::endl;}
+//         }
+//     }
+//     size_t sum1 = std::accumulate(tileData->begin(), tileData->end(), 0);
+//     size_t sum2 = std::accumulate(tileData1->begin(), tileData1->end(), 0);
+//     std::cout << sum1 << " " << sum2<<std::endl;
+// }
 
 
 void test6()
@@ -215,15 +215,24 @@ void test9()
 
     }
 }
+
+void test10()
+{
+    std::cout<<"Test 10 - Validate CalcIFD"<<std::endl;
+    OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/data/bfio_test_images/multi-channel-z-series.ome.tif");
+    std::cout<<imgLoader.CalcIFDIndex(2,0,0)<<std::endl;
+}
+
 int main(){
     test1();
     test2();
     test3();
     test4();
-    test5();
+    //test5();
     test6();
     //test7();
     //test8();
     test9();
+    test10();
     return 0;
 }

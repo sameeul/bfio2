@@ -55,11 +55,11 @@ class OmeTiffGrayScaleStripLoader : public BfioTileLoader<DataType> {
       full_depth_ = TIFFNumberOfDirectories(tiff_);
 
       // Test if the file is grayscale
-      if (samples_per_pixel_ != 1) {
-        std::stringstream message;
-        message << "Tile Loader ERROR: The file is not grayscale: SamplesPerPixel = " << samples_per_pixel_ << ".";
-        throw (std::runtime_error(message.str()));
-      }
+      // if (samples_per_pixel_ != 1) {
+      //   std::stringstream message;
+      //   message << "Tile Loader ERROR: The file is not grayscale: SamplesPerPixel = " << samples_per_pixel_ << ".";
+      //   throw (std::runtime_error(message.str()));
+      // }
       // Interpret undefined data format as unsigned integer data
       if (sample_format_ < 1 || sample_format_ > 3) {
         sample_format_ = 1;
@@ -202,11 +202,14 @@ class OmeTiffGrayScaleStripLoader : public BfioTileLoader<DataType> {
   /// @brief Tiff bits per sample
   /// @return Size of a sample in bits
   [[nodiscard]] short bitsPerSample() const override { return bits_per_sample_; }
-  [[nodiscard]] short samplePerPixel() const override { return samples_per_pixel_; }
   /// @brief Level accessor
   /// @return 1
   [[nodiscard]] size_t numberPyramidLevels() const override { return 1; }
-
+  /// \brief Getter to the number of channels (default 1)
+  /// \return Number of pixel's channels
+  [[nodiscard]] virtual size_t numberChannels() const {
+    return samples_per_pixel_;
+  }
  private:
   /// @brief Private function to copy and cast the values
   /// @tparam FileType Type inside the file

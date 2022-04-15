@@ -49,7 +49,7 @@ template<class DataType>
       TIFFGetField(tiff_, TIFFTAG_SAMPLESPERPIXEL, &(this->samples_per_pixel_));
       TIFFGetField(tiff_, TIFFTAG_BITSPERSAMPLE, &(this->bits_per_sample_));
       TIFFGetField(tiff_, TIFFTAG_SAMPLEFORMAT, &(this->sample_format_));
-      full_depth_ = TIFFNumberOfDirectories(tiff_);  
+      full_depth_ = 1;  
       tile_depth_ = 1;
       // Test if the file is greyscale
       // if (samples_per_pixel_ != 1) {
@@ -81,7 +81,7 @@ template<class DataType>
     tdata_t tiff_tile = nullptr;
     tiff_tile = _TIFFmalloc(TIFFTileSize(tiff_));
     TIFFSetDirectory(tiff_, index_layer_global_tile);
-    TIFFReadTile(tiff_, tiff_tile, index_col_global_tile * tile_width_, index_row_global_tile * tile_height_, index_layer_global_tile, 0);
+    TIFFReadTile(tiff_, tiff_tile, index_col_global_tile * tile_width_, index_row_global_tile * tile_height_, 0, 0);
     std::stringstream message;
     switch (sample_format_) {
       case 1 :
@@ -169,7 +169,6 @@ template<class DataType>
   /// @brief Tiff bits per sample
   /// @return Size of a sample in bits
   [[nodiscard]] short bitsPerSample() const override { return bits_per_sample_; }
-  [[nodiscard]] short samplePerPixel() const override { return samples_per_pixel_; }
   /// @brief Level accessor
   /// @return 1
   [[nodiscard]] size_t numberPyramidLevels() const override { return 1; }
