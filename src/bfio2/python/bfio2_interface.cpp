@@ -28,6 +28,10 @@ inline py::array_t<typename Sequence::value_type> as_pyarray_shared_5d(std::shar
 
 
 PYBIND11_MODULE(libbfio2, m) {
+
+  py::class_<Seq, std::shared_ptr<Seq>>(m, "Seq")  
+    .def(py::init<size_t, size_t, size_t>());
+
   py::class_<OmeTiffLoader, std::shared_ptr<OmeTiffLoader>>(m, "OmeTiffLoader")
     .def(py::init<const std::string &>())
     .def("get_image_height", &OmeTiffLoader::GetImageHeight)
@@ -48,11 +52,13 @@ PYBIND11_MODULE(libbfio2, m) {
 
     .def("get_channel_count", &OmeTiffLoader::GetChannelCount)
 
+    .def("get_tstep_count", &OmeTiffLoader::GetTstepCount)
+
     .def("get_bits_per_sample", &OmeTiffLoader::GetBitsPerSamples)
 
     .def("get_tile_data_2d_by_index_channel",
-        [](OmeTiffLoader& tl, size_t const index_global_tile, size_t const index_channel) -> py::array_t<uint32_t> {
-            auto tmp = tl.GetTileDataByIndex(index_global_tile, index_channel);
+        [](OmeTiffLoader& tl, size_t const index_global_tile, size_t const channel, size_t const tstep) -> py::array_t<uint32_t> {
+            auto tmp = tl.GetTileDataByIndex(index_global_tile, channel, tstep);
             auto iw = tl.GetImageWidth();
             auto ih = tl.GetImageHeight();
             auto tw = tl.GetTileWidth();
@@ -62,19 +68,19 @@ PYBIND11_MODULE(libbfio2, m) {
 	        size_t col = index_global_tile%num_col_tiles;
             auto actual_tw = iw > (col+1)*tw -1 ? tw : iw - col*tw;
 	        auto actual_th = ih > (row+1)*th -1 ? th : ih - row*th;
-            return as_pyarray_shared_5d(tmp, actual_th, actual_tw, 1, 1, 1) ;
+            return as_pyarray_shared_5d(tmp, actual_th, actual_tw, 1, 1, 1);
         }, py::return_value_policy::reference)
 
     .def("get_tile_data_2d_by_row_col_layer_channel",
-        [](OmeTiffLoader& tl, size_t const index_row_global_tile, size_t const index_col_global_tile, size_t const index_layer_global_tile, size_t const index_channel) -> py::array_t<uint32_t> {
-            auto tmp = tl.GetTileData(index_row_global_tile, index_col_global_tile, index_layer_global_tile, index_channel);
+        [](OmeTiffLoader& tl, size_t const row, size_t const col, size_t const layer, size_t const channel, size_t const tstep) -> py::array_t<uint32_t> {
+            auto tmp = tl.GetTileData(row, col, layer, channel, tstep);
             auto iw = tl.GetImageWidth();
             auto ih = tl.GetImageHeight();
             auto tw = tl.GetTileWidth();
             auto th = tl.GetTileHeight();
-            auto actual_tw = iw > (index_col_global_tile+1)*tw -1 ? tw : iw - index_col_global_tile*tw;
-	        auto actual_th = ih > (index_row_global_tile+1)*th -1 ? th : ih - index_row_global_tile*th;
-            return as_pyarray_shared_5d(tmp, actual_th, actual_tw, 1, 1, 1) ;;
+            auto actual_tw = iw > (col+1)*tw -1 ? tw : iw - col*tw;
+	        auto actual_th = ih > (row+1)*th -1 ? th : ih - row*th;
+            return as_pyarray_shared_5d(tmp, actual_th, actual_tw, 1, 1, 1);
         }, py::return_value_policy::reference)
 
         .def("get_virtual_tile_data_5d",
@@ -85,8 +91,9 @@ PYBIND11_MODULE(libbfio2, m) {
             auto id = tl.GetImageDepth();
 	        auto nc = tl.GetChannelCount();
             auto nt = tl.GetTstepCount();
+
             auto index_true_row_pixel_max = rows.Stop() > ih ? ih-1 : rows.Stop();
-	        auto index_true_col_pixel_max = cols.Stop() > iw ? iw-1 : rows.Stop();
+	        auto index_true_col_pixel_max = cols.Stop() > iw ? iw-1 : cols.Stop();
             auto index_true_min_layer = layers.Start() > 0? layers.Start() : 0;
 	        auto index_true_max_layer = layers.Stop() > id-1? id-1 : layers.Stop();
             auto index_true_min_channel = channels.Start() > 0? channels.Start() : 0;

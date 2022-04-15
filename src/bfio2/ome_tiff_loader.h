@@ -9,17 +9,8 @@
 #include "bfio_tile_loader.h"
 #include "ome_tiff_gs_strip_loader.h"
 #include "ome_tiff_gs_tile_loader.h"
+#include "sequence.h"
 
-class Seq
-{
-    private:
-        size_t start_index_, stop_index_, step_;
-    public:
-        inline Seq(size_t start, size_t  stop, size_t  step=1):start_index_(start), stop_index_(stop), step_(step){} 
-        inline size_t Start()  const  {return start_index_;}
-        inline size_t Stop()  const {return stop_index_ - 1;}
-        inline size_t Step()  const {return step_;}
-};
 
 class OmeTiffLoader{
 
@@ -33,8 +24,8 @@ class OmeTiffLoader{
         short dim_order_;
         std::string fname_;
         
-        std::tuple<uint32_t, uint32_t, uint32_t>  GetImageDimensions() const;
-        std::tuple<uint32_t, uint32_t, uint32_t>  CalculateTileDimensions() const;
+        std::tuple<uint32_t, uint32_t>  GetImageDimensions() const;
+        std::tuple<uint32_t, uint32_t>  CalculateTileDimensions() const;
         bool CheckTileStatus() const;
 
         void ParseMetadata() const;
@@ -49,7 +40,6 @@ class OmeTiffLoader{
         std::shared_ptr<std::vector<uint32_t>> GetTileData(size_t const row, size_t const col, size_t const layer=0, size_t const channel=0, size_t const tstep=0);
         std::shared_ptr<std::vector<uint32_t>> GetTileDataByIndex(size_t const tile_index, size_t const channel=0, size_t const tstep=0);
         std::shared_ptr<std::vector<uint32_t>> GetVirtualTileData(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps);
-
         std::shared_ptr<std::vector<uint32_t>> GetVirtualTileDataStrided(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps);
         size_t GetRowTileCount () const;
         size_t GetColumnTileCount () const;

@@ -1,4 +1,4 @@
-from .libbfio2 import OmeTiffLoader
+from .libbfio2 import OmeTiffLoader, Seq
 import numpy
 
 
@@ -14,9 +14,13 @@ class BioReader:
             self._image_height = self._image_reader.get_image_height()
             self._image_width = self._image_reader.get_image_width()
             self._image_depth = self._image_reader.get_image_depth()
+            self._num_channels = self._image_reader.get_channel_count()
+            self._num_tsteps = self._image_reader.get_tstep_count()
             self._DIMS['Y'] = self._image_height
             self._DIMS['X'] = self._image_width
             self._DIMS['Z'] = self._image_depth
+            self._DIMS['C'] = self._num_channels
+            self._DIMS['T'] = self._num_tsteps
         else:
             raise TypeError("Only OMETiff file format is supported")
         
@@ -31,11 +35,11 @@ class BioReader:
         self._row_tile_count = None
         self._column_tile_count = None
     
-    def data(self, row=None, col=None, layer=None, channel=None):
+    def data(self, row=None, col=None, layer=0, channel=0, tstep=0):
         if col != None:
-            return self._image_reader.get_tile_data_2d_by_row_col_layer_channel(row, col, layer, channel)
+            return self._image_reader.get_tile_data_2d_by_row_col_layer_channel(row, col, layer, channel, tstep)
         else:
-            return self._image_reader.get_tile_data_2d_by_index(row)
+            return self._image_reader.get_tile_data_2d_by_index_channel(row, channel, tstep)
 
     @property
     def image_height(self):
@@ -61,9 +65,25 @@ class BioReader:
     def image_depth(self):
         raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
+    @property
+    def num_channels(self):
+        return self._num_channels
+
+    @num_channels.setter
+    def num_channels(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
+    @property
+    def num_tsteps(self):
+        return self._num_tsteps
+
+    @num_tsteps.setter
+    def num_tsteps(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
+
 
     def image_size(self):
-        return (self._image_width, self._image_height, self._image_depth)
+        return (self._image_width, self._image_height, self._image_depth, self._num_channels, self._num_tsteps)
 
     @property    
     def tile_height(self):
@@ -143,9 +163,8 @@ class BioReader:
     
     @property
     def samples_per_pixel(self):
-        #check how to do it for multi channel
         if self._samples_per_pixel == None:
-            self._samples_per_pixel = self._image_reader.get_sample_per_pixel() 
+            self._samples_per_pixel = self._image_reader.get_channel_count() 
 
         return int(self._samples_per_pixel)
 
@@ -174,39 +193,73 @@ class BioReader:
 
     def __getitem__(self, keys):
         slice_items = (self._parse_slice(keys))
-        X = self._val_xyz(slice_items['X'], 'X')
-        Y = self._val_xyz(slice_items['Y'], 'Y')
-        Z = self._val_xyz(slice_items['Z'], 'Z')
+        X = self._val_dims(slice_items['X'], 'X')
+        Y = self._val_dims(slice_items['Y'], 'Y')
+        Z = self._val_dims(slice_items['Z'], 'Z')
+        C = self._val_dims(slice_items['C'], 'C')
+        T = self._val_dims(slice_items['T'], 'T')
 
         row_min = Y[0]
         row_max = Y[1]-1
+        if row_max < 0:
+           row_max += self._DIMS['Y']
+
         if len(Y) == 3:
             row_step = Y[2]
         else:
             row_step = 1
 
+        rows = Seq(row_min, row_max, row_step)
+
         col_min = X[0]
         col_max = X[1]-1
+        if col_max < 0:
+            col_max += self._DIMS['X']
+ 
         if len(X) == 3:
             col_step = X[2]
         else:
             col_step = 1
-        
+        cols = Seq(col_min, col_max, col_step)
+
         layer_min = Z[0]
         layer_max = Z[1]-1
-        if len(X) == 3:
+        if layer_max < 0:
+            layer_max += self._DIMS['Z']
+        if len(Z) == 3:
             layer_step = Z[2]
         else:
             layer_step = 1
+        layers = Seq(layer_min, layer_max, layer_step)
+
+        channel_min = C[0]
+        channel_max = C[1]-1
+        if channel_max < 0:
+            channel_max += self._DIMS['C']
+        if len(C) == 3:
+            channel_step = C[2]
+        else:
+            channel_step = 1
+        channels = Seq(channel_min, channel_max, channel_step)
+
+        time_min = T[0]
+        time_max = T[1]-1
+        if time_max < 0:
+            time_max += self._DIMS['T']
+        if len(T) == 3:
+            time_step = C[2]
+        else:
+            time_step = 1
+        times = Seq(time_min, time_max, time_step)
 
         if row_step != 1 or col_step != 1:
-            return self._image_reader.get_virtual_tile_data_bounding_box_3d_strided(row_min, row_max, row_step, col_min, col_max, col_step, layer_min, layer_max, layer_step)             
+            return self._image_reader.get_virtual_tile_data_5d_strided(rows, cols, layers, channels, times)
         else:
-            return self._image_reader.get_virtual_tile_data_bounding_box_3d(row_min, row_max, col_min, col_max, layer_min, layer_max, layer_step)
+            return self._image_reader.get_virtual_tile_data_5d(rows, cols, layers, channels, times)
 
     def _parse_slice(self,keys):
         # Dimension ordering and index initialization
-        dims = 'YXZ'
+        dims = 'YXZCT'
         ind = {d:None for d in dims}
         
         # If an empty slice, load the whole image
@@ -220,8 +273,8 @@ class BioReader:
         # If not an empty slice, parse the key tuple
         else:
             
-            # At most, 3 indices can be indicated
-            if len(keys) > 3:
+            # At most, 5 indices can be indicated
+            if len(keys) > 5:
                 raise ValueError('Found {} indices, but at most 3 indices may be supplied.'.format(len(keys)))
             
             # If the first key is an ellipsis, read backwards
@@ -236,13 +289,12 @@ class BioReader:
             
             # Get key values
             for dim,key in zip(dims,keys):
-                
                 if isinstance(key,slice):
                     start = 0 if key.start == None else key.start
-                    stop = getattr(self,dim) if key.stop == None else key.stop
+                    stop = self._DIMS.get(dim, 0) if key.stop == None else key.stop
                     
                     # For CT dimensions, generate a list from slices
-                    if dim in 'XYZ':
+                    if dim in 'XYZCT':
                         step = 1 if key.step is None else key.step
                         ind[dim] = [start,stop, step]
 
@@ -252,7 +304,7 @@ class BioReader:
                     
                 elif isinstance(key,(int,tuple,list)) or numpy.issubdtype(key,numpy.integer):
                     # Only the last three dimensions can use int, tuple, or list indexing
-                    if dim in 'XYZ':
+                    if dim in 'XYZCT':
                         if isinstance(key,int) or numpy.issubdtype(key,numpy.integer):
                             ind[dim] = [int(key),int(key)+1]
                     else:
@@ -308,8 +360,8 @@ class BioReader:
     """ -Validation methods- """
     """ -------------------- """
     
-    def _val_xyz(self, xyz, axis):
-        assert axis in 'XYZ'
+    def _val_dims(self, xyz, axis):
+        assert axis in 'XYZCT'
         if xyz == None:
             xyz = [0,self._DIMS[axis]-1]
         else:

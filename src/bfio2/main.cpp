@@ -221,18 +221,19 @@ void test10()
     std::cout<<"Test 10 - Validate CalcIFD"<<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/data/bfio_test_images/multi-channel-z-series.ome.tif");
     std::cout<<imgLoader.CalcIFDIndex(2,0,0)<<std::endl;
+    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,166), Seq(0,438), Seq(1,2), Seq(0,0), Seq(0,0));
 }
 
 int main(){
-    test1();
-    test2();
-    test3();
-    test4();
-    //test5();
-    test6();
-    //test7();
-    //test8();
-    test9();
+     test1();
+    // test2();
+    // test3();
+    // test4();
+    // //test5();
+    // test6();
+    // //test7();
+    // //test8();
+    // test9();
     test10();
     return 0;
 }

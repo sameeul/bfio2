@@ -15,6 +15,8 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path) :
 	fname_(fname_with_path),
 	tile_coordinate_list_(0)
 {
+	ParseMetadata();
+	SetZCT();
 	if (CheckTileStatus())
 	{
 		tile_loader_ = std::make_shared<OmeTiffGrayScaleTileLoader<uint32_t>>(n_threads_, fname_);
@@ -22,12 +24,11 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path) :
 	else 
 	{
 		// since the file is not tiled, we provide the tile dimensions
-		auto [tw, th, td]  = CalculateTileDimensions();		
-		tile_loader_ = std::make_shared<OmeTiffGrayScaleStripLoader<uint32_t>>(n_threads_, fname_, tw, th, td);
+		auto [tw, th]  = CalculateTileDimensions();		
+		tile_loader_ = std::make_shared<OmeTiffGrayScaleStripLoader<uint32_t>>(n_threads_, fname_, tw, th, 1);
 	}
 
-	ParseMetadata();
-	SetZCT();
+
 
     auto options = std::make_unique<fl::FastLoaderConfiguration<fl::DefaultView<uint32_t>>>(tile_loader_);
     // Set the configuration
@@ -95,7 +96,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileData(size_t const r
     return tile_data;
 }
 
-std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::GetImageDimensions  () const
+std::tuple<uint32_t, uint32_t>  OmeTiffLoader::GetImageDimensions  () const
 {
 	TIFF *tiff_ = TIFFOpen(fname_.c_str(), "r");
 	if (tiff_ != nullptr) 
@@ -103,23 +104,20 @@ std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::GetImageDimensions  () 
 		uint32_t w, l, ndirs;
 		TIFFGetField(tiff_, TIFFTAG_IMAGEWIDTH, &w);
 		TIFFGetField(tiff_, TIFFTAG_IMAGELENGTH, &l);
-		ndirs = TIFFNumberOfDirectories(tiff_);
 		TIFFClose(tiff_);
-		return {w, l, ndirs};	
+		return {w, l};	
 	} 
 	else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
 }
 
-std::tuple<uint32_t, uint32_t, uint32_t>  OmeTiffLoader::CalculateTileDimensions() const
+std::tuple<uint32_t, uint32_t>  OmeTiffLoader::CalculateTileDimensions() const
 {
-	auto [w, h, d] = GetImageDimensions();
+	auto [w, h] = GetImageDimensions();
 	uint32_t default_width = 1024;
 	uint32_t default_height = 1024;
-	uint32_t default_depth = 1;
 	w = std::min ({ w, default_width });
 	h = std::min ({ h, default_height });
-	d = std::min ({ d, default_depth });
-	return {w, h, d};
+	return {w, h};
 }
 
 bool OmeTiffLoader::CheckTileStatus() const
@@ -180,10 +178,10 @@ void OmeTiffLoader::ParseMetadata() const
 	TIFF *tiff_ = TIFFOpen(fname_.c_str(), "r");
 	if (tiff_ != nullptr) 
 	{
-		char *infobuf;
+		char* infobuf;
 		TIFFGetField(tiff_, TIFFTAG_IMAGEDESCRIPTION , &infobuf);
-	   	TIFFClose(tiff_);
 
+//		std::cout << "string length " << strlen(infobuf) << std::endl;
 		pugi::xml_document doc;
 		pugi::xml_parse_result result = doc.load_string(infobuf);;
 		xml_metadata_ptr_ = std::make_shared<std::map<std::string, std::string>>();
@@ -222,6 +220,7 @@ void OmeTiffLoader::ParseMetadata() const
 			}
 
 		}
+		TIFFClose(tiff_);
 	
 	} else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }	
 }
@@ -413,7 +412,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileData(const S
 			size_t virtual_z = 0;
 			for (auto k = index_true_min_layer; k<=index_true_max_layer; k=k+layers.Step())
 			{
-				size_t z_offset = virtual_z*vtw*vtd;
+				size_t z_offset = virtual_z*vtw*vth;
 				for (auto i = min_row_index; i <= max_row_index; ++i)
 				{
 					for (auto j = min_col_index; j <= max_col_index; ++j)
@@ -521,7 +520,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileDataStrided(
 			size_t virtual_z = 0;
 			for (auto k = index_true_min_layer; k<=index_true_max_layer; k=k+layers.Step())
 			{
-				size_t z_offset = virtual_z*vtw*vtd;
+				size_t z_offset = virtual_z*vtw*vth;
 
 				for (auto i = min_row_index; i <= max_row_index; ++i)
 				{
