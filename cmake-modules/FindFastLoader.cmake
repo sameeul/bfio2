@@ -71,7 +71,7 @@ endif (FastLoader_FIND_QUIETLY)
 
 # Check include files
 FIND_PATH(FastLoader_base_INCLUDE_DIR fast_loader/fast_loader.h
-		lib/fastloader
+		lib/FastLoader
 		/usr/include
 		/usr/local/include
 		)
