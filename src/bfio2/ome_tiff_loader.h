@@ -34,13 +34,13 @@ class OmeTiffLoader{
         void SetZCT();
 
     public:
-        OmeTiffLoader(const std::string &fNameWithPath);
+        OmeTiffLoader(const std::string &fNameWithPath, const int num_threads=1);
         ~OmeTiffLoader();
  
         std::shared_ptr<std::vector<uint32_t>> GetTileData(size_t const row, size_t const col, size_t const layer=0, size_t const channel=0, size_t const tstep=0);
         std::shared_ptr<std::vector<uint32_t>> GetTileDataByIndex(size_t const tile_index, size_t const channel=0, size_t const tstep=0);
-        std::shared_ptr<std::vector<uint32_t>> GetVirtualTileData(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps);
-        std::shared_ptr<std::vector<uint32_t>> GetVirtualTileDataStrided(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps);
+        std::shared_ptr<std::vector<uint32_t>> GetVirtualTileData(const Seq& rows, const Seq& cols, const Seq& layers = Seq(0,0), const Seq& channels = Seq(0,0), const Seq& tsteps = Seq(0,0));
+        std::shared_ptr<std::vector<uint32_t>> GetVirtualTileDataStrided(const Seq& rows, const Seq& cols, const Seq& layers = Seq(0,0), const Seq& channels = Seq(0,0), const Seq& tsteps = Seq(0,0));
         size_t GetRowTileCount () const;
         size_t GetColumnTileCount () const;
         size_t GetImageHeight() const ;

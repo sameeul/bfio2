@@ -30,10 +30,10 @@ inline py::array_t<typename Sequence::value_type> as_pyarray_shared_5d(std::shar
 PYBIND11_MODULE(libbfio2, m) {
 
   py::class_<Seq, std::shared_ptr<Seq>>(m, "Seq")  
-    .def(py::init<size_t, size_t, size_t>());
+    .def(py::init<const size_t, const size_t, const size_t>());
 
   py::class_<OmeTiffLoader, std::shared_ptr<OmeTiffLoader>>(m, "OmeTiffLoader")
-    .def(py::init<const std::string &>())
+    .def(py::init<const std::string &, const int>())
     .def("get_image_height", &OmeTiffLoader::GetImageHeight)
 
     .def("get_image_width", &OmeTiffLoader::GetImageWidth)

@@ -4,6 +4,7 @@
 #ifndef OMETIFF_GS_TIFF_STRIP_LOADER_H
 #define OMETIFF_GS_TIFF_STRIP_LOADER_H
 #include "bfio_tile_loader.h"
+#include <omp.h>
 
 /// @brief Tile Loader for 2D OMETiff Grayscale tiff strip files
 /// @tparam DataType AbstractView's internal type
@@ -55,11 +56,11 @@ class OmeTiffGrayScaleStripLoader : public BfioTileLoader<DataType> {
       full_depth_ = TIFFNumberOfDirectories(tiff_);
 
       // Test if the file is grayscale
-      // if (samples_per_pixel_ != 1) {
-      //   std::stringstream message;
-      //   message << "Tile Loader ERROR: The file is not grayscale: SamplesPerPixel = " << samples_per_pixel_ << ".";
-      //   throw (std::runtime_error(message.str()));
-      // }
+      if (samples_per_pixel_ != 1) {
+        std::stringstream message;
+        message << "Tile Loader ERROR: The file is not grayscale: SamplesPerPixel = " << samples_per_pixel_ << ".";
+        throw (std::runtime_error(message.str()));
+      }
       // Interpret undefined data format as unsigned integer data
       if (sample_format_ < 1 || sample_format_ > 3) {
         sample_format_ = 1;
@@ -185,7 +186,7 @@ class OmeTiffGrayScaleStripLoader : public BfioTileLoader<DataType> {
   /// @param level Tiff level [not used]
   /// @return Full Depth
   [[nodiscard]] size_t fullDepth([[maybe_unused]] size_t level) const override { return full_depth_; }
-
+  
   /// @brief Tiff tile width
   /// @param level Tiff level [not used]
   /// @return Tile width
@@ -226,6 +227,7 @@ class OmeTiffGrayScaleStripLoader : public BfioTileLoader<DataType> {
                size_t row,
                size_t start_col,
                size_t end_col) {
+#pragma omp simd
     for (size_t col = start_col; col < end_col; col++) {
       dest->data()[
           tile_width_ * tile_height_ * layer

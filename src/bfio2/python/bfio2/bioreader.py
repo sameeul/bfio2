@@ -6,28 +6,30 @@ class BioReader:
 
     READ_ONLY_MESSAGE = "{} is read-only."
     
-    def __init__(self, file_name):
+    def __init__(self, file_name, num_threads=1):
         self._file_name = file_name
         self._DIMS = {}
         if file_name.endswith('.ome.tif'):
-            self._image_reader = OmeTiffLoader(file_name)
-            self._image_height = self._image_reader.get_image_height()
-            self._image_width = self._image_reader.get_image_width()
-            self._image_depth = self._image_reader.get_image_depth()
-            self._num_channels = self._image_reader.get_channel_count()
-            self._num_tsteps = self._image_reader.get_tstep_count()
-            self._DIMS['Y'] = self._image_height
-            self._DIMS['X'] = self._image_width
-            self._DIMS['Z'] = self._image_depth
-            self._DIMS['C'] = self._num_channels
-            self._DIMS['T'] = self._num_tsteps
+            self._image_reader = OmeTiffLoader(file_name, num_threads)
+            self._Y = self._image_reader.get_image_height()
+            self._X = self._image_reader.get_image_width()
+            self._Z = self._image_reader.get_image_depth()
+            self._C = self._image_reader.get_channel_count()
+            self._T = self._image_reader.get_tstep_count()
+            self._DIMS['X'] = self._X
+            self._DIMS['Y'] = self._Y
+            self._DIMS['Z'] = self._Z
+            self._DIMS['C'] = self._C
+            self._DIMS['T'] = self._T
         else:
             raise TypeError("Only OMETiff file format is supported")
         
         self._physical_size_x = None
         self._physical_size_y = None
+        self._physical_size_z = None
         self._physical_size_x_unit = None
         self._physical_size_y_unit = None
+        self._physical_size_z_unit = None
         self._samples_per_pixel = None
         self._bits_per_sample = None
         self._tile_height = None
@@ -42,48 +44,55 @@ class BioReader:
             return self._image_reader.get_tile_data_2d_by_index_channel(row, channel, tstep)
 
     @property
-    def image_height(self):
-        return self._image_height
-    @image_height.setter
-    def image_height(self):
+    def Y(self):
+        return self._Y
+    @Y.setter
+    def Y(self):
         raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
     @property
-    def image_width(self):
-        return self._image_width
+    def X(self):
+        return self._X
 
-    @image_width.setter
-    def image_width(self):
+    @X.setter
+    def X(self):
         raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
 
     @property
-    def image_depth(self):
-        return self._image_depth
+    def Z(self):
+        return self._Z
 
-    @image_depth.setter
-    def image_depth(self):
+    @Z.setter
+    def Z(self):
         raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
     @property
-    def num_channels(self):
-        return self._num_channels
+    def C(self):
+        return self._C
 
-    @num_channels.setter
-    def num_channels(self):
+    @C.setter
+    def C(self):
         raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
     @property
-    def num_tsteps(self):
-        return self._num_tsteps
+    def T(self):
+        return self._T
 
-    @num_tsteps.setter
-    def num_tsteps(self):
+    @T.setter
+    def T(self):
         raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
+    @property
+    def shape(self):
+        return (self._X, self._Y, self._Z, self._C, self._T)
+
+    @shape.setter
+    def shape(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
     def image_size(self):
-        return (self._image_width, self._image_height, self._image_depth, self._num_channels, self._num_tsteps)
+        return (self._X, self._Y)
 
     @property    
     def tile_height(self):
@@ -158,8 +167,19 @@ class BioReader:
     def physical_size_y(self):
         raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
 
-    def get_physical_size_z(self):
-        pass
+    @property
+    def physical_size_z(self):
+        if self._physical_size_z == None:
+            self._physical_size_z = self._image_reader.get_metadata_value("PhysicalSizeZ")
+
+        if self._physical_size_z_unit == None:
+            self._physical_size_z_unit = self._image_reader.get_metadata_value("PhysicalSizeZUnit")
+
+        return (self._physical_size_z, self._physical_size_z_unit)
+
+    @physical_size_z.setter
+    def physical_size_z(self):
+        raise AttributeError(self._READ_ONLY_MESSAGE.format("read_only"))
     
     @property
     def samples_per_pixel(self):

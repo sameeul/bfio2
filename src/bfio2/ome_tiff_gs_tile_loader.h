@@ -3,6 +3,7 @@
 #ifndef OMETIFF_GS_TIFF_TILE_LOADER_H
 #define OMETIFF_GS_TIFF_TILE_LOADER_H
 #include "bfio_tile_loader.h"
+#include <omp.h>
 
 /// @brief Tile Loader for 2D OMETiff Grayscale tiff tile files
 /// @tparam DataType AbstractView's internal type
@@ -49,14 +50,14 @@ template<class DataType>
       TIFFGetField(tiff_, TIFFTAG_SAMPLESPERPIXEL, &(this->samples_per_pixel_));
       TIFFGetField(tiff_, TIFFTAG_BITSPERSAMPLE, &(this->bits_per_sample_));
       TIFFGetField(tiff_, TIFFTAG_SAMPLEFORMAT, &(this->sample_format_));
-      full_depth_ = 1;  
+      full_depth_ = TIFFNumberOfDirectories(tiff_); 
       tile_depth_ = 1;
       // Test if the file is greyscale
-      // if (samples_per_pixel_ != 1) {
-      //   std::stringstream message;
-      //   message << "Tile Loader ERROR: The file is not greyscale: SamplesPerPixel = " << samples_per_pixel_ << ".";
-      //   throw (std::runtime_error(message.str()));
-      // }
+      if (samples_per_pixel_ != 1) {
+        std::stringstream message;
+        message << "Tile Loader ERROR: The file is not greyscale: SamplesPerPixel = " << samples_per_pixel_ << ".";
+        throw (std::runtime_error(message.str()));
+      }
       // Interpret undefined data format as unsigned integer data
       if (sample_format_ < 1 || sample_format_ > 3) { sample_format_ = 1; }
     } else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
@@ -184,6 +185,7 @@ template<class DataType>
   /// @param dest Piece of memory to fill
   template<typename FileType>
   void loadTile(tdata_t src, std::shared_ptr<std::vector<DataType>> &dest) {
+#pragma omp simd
     for (size_t i = 0; i < tile_height_ * tile_width_ * samples_per_pixel_; ++i) { dest->data()[i] = (DataType) ((FileType *) (src))[i]; }
   }
 

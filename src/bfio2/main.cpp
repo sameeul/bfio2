@@ -224,6 +224,13 @@ void test10()
     std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,166), Seq(0,438), Seq(1,2), Seq(0,0), Seq(0,0));
 }
 
+void test11(){
+    std::cout<<"Test 10 - Validate CalcIFD"<<std::endl;
+    OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/data/polus-data/images/AICSImageIO/standard/tiff/actk_ome_tiff_tiles.ome.tif");
+    auto data = imgLoader.GetTileData(0,0,1,0,0);
+
+}
+
 int main(){
      test1();
     // test2();
@@ -235,5 +242,6 @@ int main(){
     // //test8();
     // test9();
     test10();
+    test11();
     return 0;
 }

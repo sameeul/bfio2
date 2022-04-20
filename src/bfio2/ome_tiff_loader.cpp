@@ -1,12 +1,12 @@
 #include "ome_tiff_loader.h"
 
 
-OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path) : 
+OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path, const int num_threads) : 
 	tile_loader_(nullptr),
 	ifd_data_ptr_(nullptr),
 	xml_metadata_ptr_(nullptr),
 	fast_loader_(nullptr),
-	n_threads_(8),
+	n_threads_(num_threads),
 	nc_(1),
 	nt_(1),
 	nz_(1),
@@ -28,13 +28,11 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path) :
 		tile_loader_ = std::make_shared<OmeTiffGrayScaleStripLoader<uint32_t>>(n_threads_, fname_, tw, th, 1);
 	}
 
-
-
     auto options = std::make_unique<fl::FastLoaderConfiguration<fl::DefaultView<uint32_t>>>(tile_loader_);
     // Set the configuration
     uint32_t radiusDepth = 0;
-    uint32_t radiusHeight = 0;
-    uint32_t radiusWidth = 0;
+    uint32_t radiusHeight = 1;
+    uint32_t radiusWidth = 1;
 
     options->radius(radiusDepth, radiusHeight, radiusWidth);
     options->ordered(true);
@@ -261,24 +259,35 @@ void OmeTiffLoader::SetViewRequests(size_t const tile_height, size_t const tile_
 	auto iw = tile_loader_->fullWidth(0);
 	tile_coordinate_list_.clear();
 
-	for(size_t x=0; x<ih; x+=row_stride){
-		size_t r_min = x;
-		size_t r_max = x+row_stride-1;
-		for(size_t y=0; y<iw; y+=col_stride){
-			size_t c_min = y;
-			size_t c_max = y+col_stride-1;
-			auto [min_row_index, min_col_index] = GetTileContainingPixel(r_min, c_min);
-			auto [max_row_index, max_col_index] = GetTileContainingPixel(r_max, c_max);
-			for (auto i = min_row_index; i <= max_row_index; ++i)
+	for (size_t t =0; t<nt_; ++t)
+	{
+		for (size_t c =0; c<nc_; ++c)
+		{
+			for (size_t z =0; z<nz_; ++z)
 			{
-				for (auto j = min_col_index; j <= max_col_index; ++j)
-				{
-					fast_loader_->requestView(i, j, 0, 0);
-					tile_coordinate_list_.push_back(std::make_tuple(r_min,r_max,c_min,c_max));
+				auto ifd_index = CalcIFDIndex(z,c,t);
+				for(size_t x=0; x<ih; x+=row_stride){
+					size_t r_min = x;
+					size_t r_max = x+row_stride-1;
+					for(size_t y=0; y<iw; y+=col_stride){
+						size_t c_min = y;
+						size_t c_max = y+col_stride-1;
+						auto [min_row_index, min_col_index] = GetTileContainingPixel(r_min, c_min);
+						auto [max_row_index, max_col_index] = GetTileContainingPixel(r_max, c_max);
+						for (auto i = min_row_index; i <= max_row_index; ++i)
+						{
+							for (auto j = min_col_index; j <= max_col_index; ++j)
+							{
+								fast_loader_->requestView(i, j, ifd_index, 0);
+								tile_coordinate_list_.push_back(std::make_tuple(r_min,r_max,c_min,c_max));
+							}
+						}
+					}
 				}
 			}
 		}
 	}
+
 
 
 }
@@ -330,7 +339,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetViewRequests(size_t con
 			auto vw = view->viewWidth();
 			auto vrw = view->radiusWidth();
 			auto vrh = view->radiusHeight();
-			auto view_ptr = view->viewOrigin() + vrh*vw; 
+			auto view_ptr = view->viewOrigin() + vrh*vw;  
 			auto virtual_tile_ptr = virtual_tile_data_ptr->begin();
 			for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
 				size_t virtual_x = i*th + local_x - index_row_pixel_min;
@@ -433,6 +442,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileData(const S
 						auto vrw = view->radiusWidth();
 						auto vrh = view->radiusHeight();
 						auto view_ptr = view->viewOrigin() + vrh*vw; 
+#pragma omp parallel for
 						for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
 							size_t virtual_x = i*th + local_x - rows.Start();
 							std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_ptr+t_offset+ch_offset+z_offset+virtual_x*vtw+initial_virtual_y);					
@@ -551,6 +561,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileDataStrided(
 					auto vrw = view->radiusWidth();
 					auto vrh = view->radiusHeight();
 					auto view_ptr = view->viewOrigin() + vrh*vw; 
+#pragma omp parallel for
 					for (size_t local_x=initial_local_x; local_x<=end_local_x; local_x=local_x+rows.Step())
 					{
 						size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
