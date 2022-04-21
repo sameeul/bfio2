@@ -30,7 +30,7 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path, const int num_t
 
     auto options = std::make_unique<fl::FastLoaderConfiguration<fl::DefaultView<uint32_t>>>(tile_loader_);
     // Set the configuration
-    uint32_t radiusDepth = 0;
+    uint32_t radiusDepth = 1;
     uint32_t radiusHeight = 1;
     uint32_t radiusWidth = 1;
 
@@ -78,9 +78,11 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileData(size_t const r
 	fast_loader_->requestView(row, col, ifd_index, 0);
 	const auto &view = fast_loader_->getBlockingResult();
 	auto vw = view->viewWidth();
+	auto vh = view->viewHeight();
 	auto vrw = view->radiusWidth();
 	auto vrh = view->radiusHeight();
-	auto view_ptr = view->viewOrigin() + vrh*vw; 
+	auto vrd = view->radiusDepth();
+	auto view_ptr = view->viewOrigin() + vrd*vw*vh + vrh*vw;
 	auto tile_ptr = tile_data->data();
 	for (size_t i = 0; i < actual_th; ++i) 
 	{	
@@ -337,9 +339,11 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetViewRequests(size_t con
 			size_t initial_virtual_y = j*tw + initial_local_y - index_col_pixel_min;
 
 			auto vw = view->viewWidth();
+			auto vh = view->viewHeight();
 			auto vrw = view->radiusWidth();
 			auto vrh = view->radiusHeight();
-			auto view_ptr = view->viewOrigin() + vrh*vw;  
+			auto vrd = view->radiusDepth();
+			auto view_ptr = view->viewOrigin() + vrd*vw*vh + vrh*vw;
 			auto virtual_tile_ptr = virtual_tile_data_ptr->begin();
 			for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
 				size_t virtual_x = i*th + local_x - index_row_pixel_min;
@@ -424,6 +428,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileData(const S
 				size_t z_offset = virtual_z*vtw*vth;
 				for (auto i = min_row_index; i <= max_row_index; ++i)
 				{
+					#pragma omp parallel for
 					for (auto j = min_col_index; j <= max_col_index; ++j)
 					{
 						const auto &view = fast_loader_->getBlockingResult();	
@@ -439,10 +444,11 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileData(const S
 						size_t initial_virtual_y = j*tw + initial_local_y - cols.Start();
 
 						auto vw = view->viewWidth();
+						auto vh = view->viewHeight();
 						auto vrw = view->radiusWidth();
 						auto vrh = view->radiusHeight();
-						auto view_ptr = view->viewOrigin() + vrh*vw; 
-#pragma omp parallel for
+						auto vrd = view->radiusDepth();
+						auto view_ptr = view->viewOrigin() + vrd*vw*vh + vrh*vw;
 						for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
 							size_t virtual_x = i*th + local_x - rows.Start();
 							std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_ptr+t_offset+ch_offset+z_offset+virtual_x*vtw+initial_virtual_y);					
@@ -534,6 +540,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileDataStrided(
 
 				for (auto i = min_row_index; i <= max_row_index; ++i)
 				{
+					#pragma omp parallel for
 					for (auto j = min_col_index; j <= max_col_index; ++j)
 					{
 					const auto &view = fast_loader_->getBlockingResult();	
@@ -558,10 +565,12 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileDataStrided(
 					size_t initial_virtual_y = j*tw + initial_local_y - cols.Start();
 
 					auto vw = view->viewWidth();
+					auto vh = view->viewHeight();
 					auto vrw = view->radiusWidth();
 					auto vrh = view->radiusHeight();
-					auto view_ptr = view->viewOrigin() + vrh*vw; 
-#pragma omp parallel for
+					auto vrd = view->radiusDepth();
+					auto view_ptr = view->viewOrigin() + vrd*vw*vh + vrh*vw;
+
 					for (size_t local_x=initial_local_x; local_x<=end_local_x; local_x=local_x+rows.Step())
 					{
 						size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
