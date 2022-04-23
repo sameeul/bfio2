@@ -383,7 +383,7 @@ class BioReader:
     def _val_dims(self, xyz, axis):
         assert axis in 'XYZCT'
         if xyz == None:
-            xyz = [0,self._DIMS[axis]-1]
+            xyz = [0,self._DIMS[axis]]
         else:
             assert len(xyz) == 2 or len(xyz) == 3, \
                 '{} must be a list or tuple of length 2 or 3.'.format(axis)

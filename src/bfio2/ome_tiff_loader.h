@@ -1,11 +1,18 @@
+#include <future>
 #include <cstring>
 #include <string>
 #include <tuple>
 #include <memory>
 #include <vector>
+
 #include <fast_loader/fast_loader.h>
 #include <omp.h>
 #include <pugixml.hpp>
+#ifdef WITH_PYTHON_H
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
+#endif
+
 #include "bfio_tile_loader.h"
 #include "ome_tiff_gs_strip_loader.h"
 #include "ome_tiff_gs_tile_loader.h"
@@ -32,6 +39,7 @@ class OmeTiffLoader{
         size_t AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const;
 
         void SetZCT();
+        void CopyToVirtualTile(const Seq& rows, const Seq& cols, size_t i, size_t j, std::shared_ptr<std::vector<uint32_t>> virtual_tile_data, size_t offset);
 
     public:
         OmeTiffLoader(const std::string &fNameWithPath, const int num_threads=1);
@@ -58,5 +66,5 @@ class OmeTiffLoader{
         std::shared_ptr<std::vector<uint32_t>> GetViewRequests(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const index_col_pixel_min, size_t const index_col_pixel_max);
         std::vector< std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>> tile_coordinate_list_;
-        size_t CalcIFDIndex (size_t Z, size_t C, size_t T) const;
+        size_t CalcIFDIndex (size_t Z, size_t C, size_t T) const; 
 };
