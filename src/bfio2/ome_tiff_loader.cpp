@@ -30,7 +30,7 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path, const int num_t
 
     auto options = std::make_unique<fl::FastLoaderConfiguration<fl::DefaultView<uint32_t>>>(tile_loader_);
     // Set the configuration
-    uint32_t radiusDepth = 1;
+    uint32_t radiusDepth = 0;
     uint32_t radiusHeight = 1;
     uint32_t radiusWidth = 1;
 
@@ -155,16 +155,18 @@ std::pair<size_t, size_t> OmeTiffLoader::GetTileContainingPixel(size_t const row
 	size_t ih = GetImageHeight();
 	size_t iw = GetImageWidth();
 	size_t row = row_pixel_index/th;
+
 	if (row_pixel_index >= ih)
 	{
-		row = row_pixel_index/std::min(ih, th);
+		row = (ih-1)/th;
 	} 
 	
-	size_t col = col_pixel_index/tw;
+	size_t col = col_pixel_index/tw;	
 	if (col_pixel_index >= iw)
 	{
-		col = col_pixel_index/std::min(iw, tw);
+		col = (iw-1)/tw;
 	} 
+
 	return std::make_pair(row, col);
 }
 
