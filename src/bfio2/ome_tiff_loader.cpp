@@ -19,16 +19,16 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path, const int num_t
 	SetZCT();
 	if (CheckTileStatus())
 	{
-		tile_loader_ = std::make_shared<OmeTiffGrayScaleTileLoader<uint32_t>>(n_threads_, fname_);
+		tile_loader_ = std::make_shared<OmeTiffGrayScaleTileLoader<tile_data_type>>(n_threads_, fname_);
 	}
 	else 
 	{
 		// since the file is not tiled, we provide the tile dimensions
 		auto [tw, th]  = CalculateTileDimensions();		
-		tile_loader_ = std::make_shared<OmeTiffGrayScaleStripLoader<uint32_t>>(n_threads_, fname_, tw, th, 1);
+		tile_loader_ = std::make_shared<OmeTiffGrayScaleStripLoader<tile_data_type>>(n_threads_, fname_, tw, th, 1);
 	}
 
-    auto options = std::make_unique<fl::FastLoaderConfiguration<fl::DefaultView<uint32_t>>>(tile_loader_);
+    auto options = std::make_unique<fl::FastLoaderConfiguration<fl::DefaultView<tile_data_type>>>(tile_loader_);
     // Set the configuration
     uint32_t radiusDepth = 0;
     uint32_t radiusHeight = 1;
@@ -38,9 +38,9 @@ OmeTiffLoader::OmeTiffLoader(const std::string &fname_with_path, const int num_t
     options->ordered(true);
     options->borderCreatorConstant(0);
     options->cacheCapacity(0,100);
-    options->viewAvailable(0,16);
+    options->viewAvailable(0,10);
     // Create the Fast Loader Graph	
-    fast_loader_ = std::make_shared<fl::FastLoaderGraph<fl::DefaultView<uint32_t>>>(std::move(options));
+    fast_loader_ = std::make_shared<fl::FastLoaderGraph<fl::DefaultView<tile_data_type>>>(std::move(options));
     // Execute the graph
     fast_loader_->executeGraph();
 };
@@ -62,7 +62,7 @@ size_t OmeTiffLoader::GetTileHeight() const {return tile_loader_->tileHeight(0);
 size_t OmeTiffLoader::GetTileWidth() const {return tile_loader_->tileWidth(0);}
 size_t OmeTiffLoader::GetTileDepth() const {return tile_loader_->tileDepth(0);}
 
-std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileData(size_t const row, size_t const col, size_t const layer, size_t const channel, size_t const tstep)
+std::shared_ptr<std::vector<tile_data_type>> OmeTiffLoader::GetTileData(size_t const row, size_t const col, size_t const layer, size_t const channel, size_t const tstep)
 {
     auto tw = tile_loader_->tileWidth(0);
     auto th = tile_loader_->tileHeight(0);
@@ -72,7 +72,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileData(size_t const r
 	auto actual_tw = iw > (col+1)*tw -1 ? tw : iw - col*tw;
 	auto actual_th = ih > (row+1)*th -1 ? th : ih - row*th;
 
-    std::shared_ptr<std::vector<uint32_t>> tile_data = std::make_shared<std::vector<uint32_t>>(actual_tw * actual_th * td);
+    std::shared_ptr<std::vector<tile_data_type>> tile_data = std::make_shared<std::vector<tile_data_type>>(actual_tw * actual_th * td);
 	auto ifd_index = CalcIFDIndex(layer, channel, tstep);
 	fast_loader_->requestView(row, col, ifd_index, 0);
 	const auto &view = fast_loader_->getBlockingResult();
@@ -136,7 +136,7 @@ bool OmeTiffLoader::CheckTileStatus() const
 	} else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
 }
 
-std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetTileDataByIndex(size_t const tile_index, size_t const channel, size_t const tstep)
+std::shared_ptr<std::vector<tile_data_type>> OmeTiffLoader::GetTileDataByIndex(size_t const tile_index, size_t const channel, size_t const tstep)
 {
 	size_t num_col_tiles = GetColumnTileCount();	
 	size_t num_row_tiles = GetRowTileCount();
@@ -304,7 +304,7 @@ void OmeTiffLoader::SetViewRequests(size_t const tile_height, size_t const tile_
 
 }
 
-std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetViewRequests(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
+std::shared_ptr<std::vector<tile_data_type>> OmeTiffLoader::GetViewRequests(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const index_col_pixel_min, size_t const index_col_pixel_max)
 {
 
@@ -329,7 +329,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetViewRequests(size_t con
 
 	auto vtw = index_true_col_pixel_max-index_col_pixel_min+1;
 	auto vth = index_true_row_pixel_max-index_row_pixel_min+1;
-	std::shared_ptr<std::vector<uint32_t>> virtual_tile_data = std::make_shared<std::vector<uint32_t>>(vtw * vth);
+	std::shared_ptr<std::vector<tile_data_type>> virtual_tile_data = std::make_shared<std::vector<tile_data_type>>(vtw * vth);
 
 	// now loop through each tile, get tile data, fill the virtual tile vector
 	for (int i = min_row_index; i <= max_row_index; ++i)
@@ -343,7 +343,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetViewRequests(size_t con
 	return virtual_tile_data;
 }
 
-std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileData(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps)
+std::shared_ptr<std::vector<tile_data_type>> OmeTiffLoader::GetVirtualTileData(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps)
 {
 	// Convention 
 	// rows are X coordinate (increasing from top to bottom)
@@ -374,7 +374,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileData(const S
 	auto vtd = (index_true_max_layer-index_true_min_layer)/layers.Step()+1;
 	auto num_channels = (index_true_max_channel-index_true_min_channel)/channels.Step()+1;
 	auto num_tsteps = (index_true_max_tstep-index_true_min_tstep)/tsteps.Step()+1;
-	std::shared_ptr<std::vector<uint32_t>> virtual_tile_data = std::make_shared<std::vector<uint32_t>>(vtw * vth * vtd * num_channels * num_tsteps);
+	std::shared_ptr<std::vector<tile_data_type>> virtual_tile_data = std::make_shared<std::vector<tile_data_type>>(vtw * vth * vtd * num_channels * num_tsteps);
 
 	for (auto m = index_true_min_tstep; m<=index_true_max_tstep; m=m+tsteps.Step())
 	{
@@ -394,9 +394,9 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileData(const S
 		}
 
 	}
-#ifdef WITH_PYTHON_H
- 	py::gil_scoped_acquire acquire;
-#endif
+// #ifdef WITH_PYTHON_H
+//  	py::gil_scoped_acquire acquire;
+// #endif
 	size_t virtual_tstep = 0;
 	for (auto m = index_true_min_tstep; m<=index_true_max_tstep; m=m+tsteps.Step())
 	{
@@ -414,10 +414,13 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileData(const S
 				{
 					for (auto j = min_col_index; j <= max_col_index; ++j)
 					{
-						//CopyToVirtualTile(rows, cols, i, j, virtual_tile_data, offset);
-						 auto tmp = std::async(std::launch::async, [&rows, &cols, i, j, virtual_tile_data, offset, this](){
-						  	CopyToVirtualTile(rows, cols, i, j, virtual_tile_data, offset);
-						  });
+						CopyToVirtualTile(rows, cols, i, j, virtual_tile_data, offset);
+						//  auto tmp = pool.ScheduleAndGetFuture([&rows, &cols, i, j, virtual_tile_data, offset, this](){
+						//   	CopyToVirtualTile(rows, cols, i, j, virtual_tile_data, offset);
+						//   });
+						//  auto tmp = std::async(std::launch::async, [&rows, &cols, i, j, virtual_tile_data, offset, this](){
+						//   	CopyToVirtualTile(rows, cols, i, j, virtual_tile_data, offset);
+						//   });
 					}
 				}
 				++virtual_z;
@@ -426,15 +429,15 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileData(const S
 		}
 		++virtual_tstep;
 	}
-#ifdef WITH_PYTHON_H
- 	py::gil_scoped_release release;
-#endif
+// #ifdef WITH_PYTHON_H
+//  	py::gil_scoped_release release;
+// #endif
 	return virtual_tile_data;
 }
 
 
 
-std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileDataStrided(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps)
+std::shared_ptr<std::vector<tile_data_type>> OmeTiffLoader::GetVirtualTileDataStrided(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps)
 {
 
 	// Convention 
@@ -466,7 +469,7 @@ std::shared_ptr<std::vector<uint32_t>> OmeTiffLoader::GetVirtualTileDataStrided(
 	auto vtd = (index_true_max_layer-index_true_min_layer)/layers.Step()+1;
 	auto num_channels = (index_true_max_channel-index_true_min_channel)/channels.Step()+1;
 	auto num_tsteps = (index_true_max_tstep-index_true_min_tstep)/tsteps.Step()+1;
-	std::shared_ptr<std::vector<uint32_t>> virtual_tile_data = std::make_shared<std::vector<uint32_t>>(vtw * vth * vtd * num_channels * num_tsteps) ;
+	std::shared_ptr<std::vector<tile_data_type>> virtual_tile_data = std::make_shared<std::vector<tile_data_type>>(vtw * vth * vtd * num_channels * num_tsteps) ;
 
 	for (auto m = index_true_min_tstep; m<=index_true_max_tstep; m=m+tsteps.Step())
 	{
@@ -566,7 +569,7 @@ size_t OmeTiffLoader::CalcIFDIndex (size_t z, size_t c, size_t t) const
 	return ifd_dir;
 }
 
-void OmeTiffLoader::CopyToVirtualTile(const Seq& rows, const Seq& cols, size_t i, size_t j, std::shared_ptr<std::vector<uint32_t>> virtual_tile_data, size_t offset)
+void OmeTiffLoader::CopyToVirtualTile(const Seq& rows, const Seq& cols, size_t i, size_t j, std::shared_ptr<std::vector<tile_data_type>> virtual_tile_data, size_t offset)
 {
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);
@@ -614,15 +617,21 @@ void OmeTiffLoader::CopyToVirtualTile(const Seq& rows, const Seq& cols, size_t i
 	auto virtual_tile_data_ptr = virtual_tile_data->data();
 	auto virtual_tile_data_begin = virtual_tile_data->begin();
 
-#pragma omp parallel for
-	for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
 
+	if (cols.Step() == 1){
+		#pragma omp parallel for
+		for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
+		//std::cout<<omp_get_thread_num()<<std::endl;
 		size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
-		if (cols.Step() == 1){
 			std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+offset+virtual_x*vtw+initial_virtual_y);					
 		}
-		else 
-		{
+	}
+	else 
+	{
+		#pragma omp parallel for
+		for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
+		//std::cout<<omp_get_thread_num()<<std::endl;
+		size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
 			for (size_t local_y=initial_local_y; local_y<=end_local_y; local_y=local_y+cols.Step())
 			{
 				size_t virtual_y = (j*tw + local_y - cols.Start())/cols.Step();

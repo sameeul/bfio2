@@ -9,7 +9,7 @@
 
 #include <numeric>
 
-size_t partial_sum(std::shared_ptr<std::vector<uint32_t>> data, size_t row_min, size_t row_max,  size_t col_min, size_t col_max, size_t col_width)
+size_t partial_sum(std::shared_ptr<std::vector<tile_data_type>> data, size_t row_min, size_t row_max,  size_t col_min, size_t col_max, size_t col_width)
 {
     size_t sum = 0;
     for (int i=row_min; i<= row_max; ++i)
@@ -33,7 +33,7 @@ void test1()
     auto numColTiles = imgLoader.GetColumnTileCount();  
     auto start = std::chrono::steady_clock::now(); 
 
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileData(0,0,0,0);
+    std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(0,0,0,0);
     size_t sum = 0;
     sum += partial_sum(tileData, 500, 1023,700,1023, 1024);
     tileData = imgLoader.GetTileData(0,1,0,0);
@@ -68,7 +68,7 @@ void test2()
     auto numColTiles = imgLoader.GetColumnTileCount();  
     auto start = std::chrono::steady_clock::now(); 
 
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileData(0,0,0);
+    std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(0,0,0);
     size_t sum = 0;
     sum += partial_sum(tileData, 0, 100,0,100, 1024);
    
@@ -96,7 +96,7 @@ void test3()
     auto numColTiles = imgLoader.GetColumnTileCount();  
     auto start = std::chrono::steady_clock::now(); 
 
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileData(0,0,0);
+    std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(0,0,0);
     size_t sum = 0;
     sum += partial_sum(tileData, 0, 1023,0,1023, 1024);
    
@@ -124,7 +124,7 @@ void test4()
     struct rusage rss1, rss2;
     auto start = std::chrono::steady_clock::now(); 
     auto tmp = getrusage(RUSAGE_SELF, &rss1);
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileData(0,0,0);
+    std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(0,0,0);
     tmp = getrusage(RUSAGE_SELF, &rss2);
 
     std::cout<<"Memory usage for tile " << rss2.ru_maxrss - rss1.ru_maxrss << std::endl;
@@ -139,8 +139,8 @@ void test4()
 //     std::cout<<"Test 5 - Virtual Tile Stride" <<std::endl;
 //     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 
-//     std::shared_ptr<std::vector<uint32_t>> tileData1 = imgLoader.GetBoundingBoxVirtualTileData(0,1079,0,1023,0,0);
-//     std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetBoundingBoxVirtualTileDataStrideVersion(0,1079,1,0,1023,2,0,0,1);
+//     std::shared_ptr<std::vector<tile_data_type>> tileData1 = imgLoader.GetBoundingBoxVirtualTileData(0,1079,0,1023,0,0);
+//     std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetBoundingBoxVirtualTileDataStrideVersion(0,1079,1,0,1023,2,0,0,1);
 //     for(int i=0;i<10;i++){
 //         if (i%2==0){
 //             if(tileData1->at(i) != tileData->at(i/2)){std::cout<<"not match"<<std::endl;}
@@ -157,7 +157,7 @@ void test6()
     std::cout<<"Test 6 - Loop through tiles using index" <<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
     for (int i=0; i<4; ++i){
-        std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByIndex(i);
+        std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileDataByIndex(i);
         size_t sum = std::accumulate(tileData->begin(), tileData->end(), size_t(0));        
         std::cout << "Tile id " << i << ", sum = "<< sum <<std::endl;
     }
@@ -167,8 +167,8 @@ void test7()
 {
     std::cout<<"Test 7 - Sanity check" <<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileDataByIndex(0);
-//    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileData(0,0,0);
+    std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileDataByIndex(0);
+//    std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(0,0,0);
 
     for (int i=0; i< imgLoader.GetTileHeight()*imgLoader.GetTileWidth(); ++i){
         std::cout<<tileData->at(i)<<std::endl;
@@ -208,7 +208,7 @@ void test9()
     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
     for (int i=0; i<2; ++i){
         for (int j=0; j<2; ++j){
-            std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetTileData(i,j,0);
+            std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(i,j,0);
             size_t sum = std::accumulate(tileData->begin(), tileData->end(), size_t(0));        
             std::cout << "Tile id " << i << ", sum = "<< sum <<std::endl;
         }
@@ -221,7 +221,7 @@ void test10()
     std::cout<<"Test 10 - Validate CalcIFD"<<std::endl;
     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/data/bfio_test_images/multi-channel-z-series.ome.tif");
     std::cout<<imgLoader.CalcIFDIndex(2,0,0)<<std::endl;
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,166), Seq(0,438), Seq(1,2), Seq(0,0), Seq(0,0));
+    std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetVirtualTileData(Seq(0,166), Seq(0,438), Seq(1,2), Seq(0,0), Seq(0,0));
 }
 
 void test11(){
@@ -231,8 +231,29 @@ void test11(){
 
 }
 
+void test12(){
+    std::cout<<"Test 12 - Read the whole image"<<std::endl;
+    auto start = std::chrono::steady_clock::now(); 
+    OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/data/bfio_test_images/r001_c001_z000.ome.tif",64);
+    auto ih = imgLoader.GetImageHeight();
+    auto iw = imgLoader.GetImageWidth();
+    std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1));
+    auto end = std::chrono::steady_clock::now(); 
+    size_t count = 0, sum = 0;
+    for (auto x: *tileData){
+        sum +=x;
+        // count++;
+        // std::cout<<x<<std::endl;
+        // if (count==10) break;
+    }
+    std::cout <<"Virtual tile total: "<< sum<<std::endl;
+    std::chrono::duration<double> elapsed_seconds = end-start;
+    std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
+}
+
+
 int main(){
-     test1();
+    // test1();
     // test2();
     // test3();
     // test4();
@@ -241,7 +262,10 @@ int main(){
     // //test7();
     // //test8();
     // test9();
-    test10();
-    test11();
+    // test10();
+    // test11();
+     test12();
+    //test13();
     return 0;
+
 }

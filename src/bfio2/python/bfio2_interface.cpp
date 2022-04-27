@@ -57,7 +57,7 @@ PYBIND11_MODULE(libbfio2, m) {
     .def("get_bits_per_sample", &OmeTiffLoader::GetBitsPerSamples)
 
     .def("get_tile_data_2d_by_index_channel",
-        [](OmeTiffLoader& tl, size_t const index_global_tile, size_t const channel, size_t const tstep) -> py::array_t<uint32_t> {
+        [](OmeTiffLoader& tl, size_t const index_global_tile, size_t const channel, size_t const tstep) -> py::array_t<tile_data_type> {
             auto tmp = tl.GetTileDataByIndex(index_global_tile, channel, tstep);
             auto iw = tl.GetImageWidth();
             auto ih = tl.GetImageHeight();
@@ -72,7 +72,7 @@ PYBIND11_MODULE(libbfio2, m) {
         }, py::return_value_policy::reference)
 
     .def("get_tile_data_2d_by_row_col_layer_channel",
-        [](OmeTiffLoader& tl, size_t const row, size_t const col, size_t const layer, size_t const channel, size_t const tstep) -> py::array_t<uint32_t> {
+        [](OmeTiffLoader& tl, size_t const row, size_t const col, size_t const layer, size_t const channel, size_t const tstep) -> py::array_t<tile_data_type> {
             auto tmp = tl.GetTileData(row, col, layer, channel, tstep);
             auto iw = tl.GetImageWidth();
             auto ih = tl.GetImageHeight();
@@ -84,7 +84,7 @@ PYBIND11_MODULE(libbfio2, m) {
         }, py::return_value_policy::reference)
 
         .def("get_virtual_tile_data_5d",
-        [](OmeTiffLoader& tl, const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps) -> py::array_t<uint32_t> {
+        [](OmeTiffLoader& tl, const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps) -> py::array_t<tile_data_type> {
             auto tmp = tl.GetVirtualTileData(rows, cols, layers, channels, tsteps);
             auto ih = tl.GetImageHeight();
 	        auto iw = tl.GetImageWidth();
@@ -110,7 +110,7 @@ PYBIND11_MODULE(libbfio2, m) {
         }, py::return_value_policy::reference)
 
        .def("get_virtual_tile_data_5d_strided",
-        [](OmeTiffLoader& tl, const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps) -> py::array_t<uint32_t> {
+        [](OmeTiffLoader& tl, const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps) -> py::array_t<tile_data_type> {
             auto tmp = tl.GetVirtualTileDataStrided(rows, cols, layers, channels, tsteps);
             auto ih = tl.GetImageHeight();
 	        auto iw = tl.GetImageWidth();
@@ -145,7 +145,7 @@ PYBIND11_MODULE(libbfio2, m) {
         })
 
         .def("get_iterator_requested_tile_data",
-        [](OmeTiffLoader& tl, size_t const index_row_pixel_min, size_t const index_row_pixel_max, size_t const index_col_pixel_min, size_t const index_col_pixel_max) -> py::array_t<uint32_t> {
+        [](OmeTiffLoader& tl, size_t const index_row_pixel_min, size_t const index_row_pixel_max, size_t const index_col_pixel_min, size_t const index_col_pixel_max) -> py::array_t<tile_data_type> {
             auto tmp = tl.GetViewRequests(index_row_pixel_min, index_row_pixel_max, index_col_pixel_min, index_col_pixel_max);
             auto ih = tl.GetImageHeight();
 	        auto iw = tl.GetImageWidth();
