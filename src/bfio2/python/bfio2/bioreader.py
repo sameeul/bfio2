@@ -1,4 +1,5 @@
-from .libbfio2 import OmeTiffLoader, Seq
+from . import libbfio2 as bfio2
+from .libbfio2 import Seq
 import numpy
 
 
@@ -6,11 +7,28 @@ class BioReader:
 
     READ_ONLY_MESSAGE = "{} is read-only."
     
+
+
     def __init__(self, file_name, num_threads=1):
+
+        img_cls_dict_ = {
+            "uint8_t":bfio2.OmeTiffLoaderUint8,
+            "uint16_t":bfio2.OmeTiffLoaderUint16,
+            "uint32_t":bfio2.OmeTiffLoaderUint32,
+            "uint64_t":bfio2.OmeTiffLoaderUint64,
+            "int8_t":bfio2.OmeTiffLoaderInt8,
+            "int16_t":bfio2.OmeTiffLoaderInt16,
+            "int32_t":bfio2.OmeTiffLoaderInt32,
+            "int64_t":bfio2.OmeTiffLoaderInt64,
+            "float":bfio2.OmeTiffLoaderFloat,
+            "double":bfio2.OmeTiffLoaderDouble,
+        }
         self._file_name = file_name
         self._DIMS = {}
         if file_name.endswith('.ome.tif'):
-            self._image_reader = OmeTiffLoader(file_name, num_threads)
+            tiff_type = bfio2.get_tiff_type(file_name)
+            self._image_reader = img_cls_dict_[tiff_type](file_name, num_threads)
+            
             self._Y = self._image_reader.get_image_height()
             self._X = self._image_reader.get_image_width()
             self._Z = self._image_reader.get_image_depth()

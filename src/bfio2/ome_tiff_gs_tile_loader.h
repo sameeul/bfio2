@@ -185,8 +185,10 @@ template<class DataType>
   /// @param dest Piece of memory to fill
   template<typename FileType>
   void loadTile(tdata_t src, std::shared_ptr<std::vector<DataType>> &dest) {
-#pragma omp for simd
-    for (size_t i = 0; i < tile_height_ * tile_width_ * samples_per_pixel_; ++i) { dest->data()[i] = (DataType) ((FileType *) (src))[i]; }
+    auto len = tile_height_ * tile_width_ * samples_per_pixel_;
+    auto data_ptr = dest->data();
+    #pragma omp simd
+    for (size_t i = 0; i < len; ++i) { data_ptr[i] = (DataType) ((FileType *) (src))[i]; }
   }
 
 };

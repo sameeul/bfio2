@@ -26,7 +26,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -ftree-vectorize")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake-modules")
 
@@ -45,7 +45,7 @@ include_directories(lib/pugixml)
 
 
 set(SOURCE 
-	src/bfio2/ome_tiff_loader.cpp 
+	src/bfio2/ome_tiff_loader.h 
 	lib/pugixml/pugixml.cpp
 )
 
