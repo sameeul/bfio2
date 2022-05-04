@@ -50,10 +50,12 @@ set(SOURCE
 )
 
 # Python bindings.
-pybind11_add_module(libbfio2 
-	${SOURCE}
-	src/bfio2/python/bfio2_interface.cpp
-)
+if(BUILD_LIB)
+	pybind11_add_module(libbfio2 
+		${SOURCE}
+		src/bfio2/python/bfio2_interface.cpp
+	)
+endif()
 
 # CLI
 if(BUILD_CLI)
@@ -64,9 +66,13 @@ if(BUILD_CLI)
 		target_link_libraries(bfio2 PRIVATE OpenMP::OpenMP_CXX)
 	endif()
 endif()
-target_compile_definitions(libbfio2 PRIVATE WITH_PYTHON_H)
-target_link_libraries(libbfio2 PRIVATE stdc++fs)
-target_link_libraries(libbfio2 PRIVATE ${bfio2_LIBRARIES})
-if (OPENMP_FOUND)
-	target_link_libraries(libbfio2 PRIVATE OpenMP::OpenMP_CXX)
+
+#Library
+if(BUILD_LIB)
+	target_compile_definitions(libbfio2 PRIVATE WITH_PYTHON_H)
+	target_link_libraries(libbfio2 PRIVATE stdc++fs)
+	target_link_libraries(libbfio2 PRIVATE ${bfio2_LIBRARIES})
+	if (OPENMP_FOUND)
+		target_link_libraries(libbfio2 PRIVATE OpenMP::OpenMP_CXX)
+	endif()
 endif()
