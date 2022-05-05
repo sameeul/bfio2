@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.18)
 project(libbfio2 LANGUAGES CXX)
-set(CMAKE_DEBUG_POSTFIX d)
+#set(CMAKE_DEBUG_POSTFIX d)
 set (CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
 #OpenMP
 find_package(OpenMP)
@@ -26,7 +27,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -ftree-vectorize")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake-modules")
 
@@ -38,7 +39,7 @@ if(FastLoader_FOUND)
 else()
 	message(FATAL_ERROR "Unable to find FastLoader which is required for Image Loader.")
 endif()
-message(STATUS ${CMAKE_CXX_FLAGS})
+message(STATUS "CXX Flags" ${CMAKE_CXX_FLAGS})
 
 #pugixml
 include_directories(lib/pugixml)
@@ -69,6 +70,7 @@ endif()
 
 #Library
 if(BUILD_LIB)
+	
 	target_compile_definitions(libbfio2 PRIVATE WITH_PYTHON_H)
 	target_link_libraries(libbfio2 PRIVATE stdc++fs)
 	target_link_libraries(libbfio2 PRIVATE ${bfio2_LIBRARIES})

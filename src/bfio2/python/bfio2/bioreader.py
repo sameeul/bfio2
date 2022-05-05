@@ -1,5 +1,16 @@
 from . import libbfio2 as bfio2
-from .libbfio2 import Seq
+from .libbfio2 import Seq, get_tiff_type,\
+                    OmeTiffLoaderUint8, \
+                    OmeTiffLoaderUint16, \
+                    OmeTiffLoaderUint32, \
+                    OmeTiffLoaderUint64, \
+                    OmeTiffLoaderInt8, \
+                    OmeTiffLoaderInt16, \
+                    OmeTiffLoaderInt32, \
+                    OmeTiffLoaderInt64, \
+                    OmeTiffLoaderFloat, \
+                    OmeTiffLoaderDouble
+            
 import numpy
 
 
@@ -12,16 +23,16 @@ class BioReader:
     def __init__(self, file_name, num_threads=1):
 
         img_cls_dict_ = {
-            "uint8_t":bfio2.OmeTiffLoaderUint8,
-            "uint16_t":bfio2.OmeTiffLoaderUint16,
-            "uint32_t":bfio2.OmeTiffLoaderUint32,
-            "uint64_t":bfio2.OmeTiffLoaderUint64,
-            "int8_t":bfio2.OmeTiffLoaderInt8,
-            "int16_t":bfio2.OmeTiffLoaderInt16,
-            "int32_t":bfio2.OmeTiffLoaderInt32,
-            "int64_t":bfio2.OmeTiffLoaderInt64,
-            "float":bfio2.OmeTiffLoaderFloat,
-            "double":bfio2.OmeTiffLoaderDouble,
+            "uint8_t":OmeTiffLoaderUint8,
+            "uint16_t":OmeTiffLoaderUint16,
+            "uint32_t":OmeTiffLoaderUint32,
+            "uint64_t":OmeTiffLoaderUint64,
+            "int8_t":OmeTiffLoaderInt8,
+            "int16_t":OmeTiffLoaderInt16,
+            "int32_t":OmeTiffLoaderInt32,
+            "int64_t":OmeTiffLoaderInt64,
+            "float":OmeTiffLoaderFloat,
+            "double":OmeTiffLoaderDouble,
         }
         self._file_name = file_name
         self._DIMS = {}

@@ -14,9 +14,11 @@ std::string GetTiffType(const std::string &fname){
     tiff = TIFFOpen(fname.c_str(), "rm");
     std::string sample_type = "";
     if (tiff != nullptr){
-        short sample_format = 0, bits_per_sample = 0, samples_per_pixel = 0;
+        uint16_t sample_format = 0, bits_per_sample = 0, samples_per_pixel = 0;
         TIFFGetField(tiff, TIFFTAG_BITSPERSAMPLE, &bits_per_sample);
         TIFFGetField(tiff, TIFFTAG_SAMPLEFORMAT, &sample_format);
+        // Interpret undefined data format as unsigned integer data
+        if (sample_format < 1 || sample_format > 3) { sample_format = 1; }
         TIFFClose(tiff);
         switch (sample_format) {
             case 1 :

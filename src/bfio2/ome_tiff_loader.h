@@ -460,9 +460,9 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 	auto num_tsteps = (index_true_max_tstep-index_true_min_tstep)/tsteps.Step()+1;
 	std::shared_ptr<std::vector<SampleType>> virtual_tile_data = std::make_shared<std::vector<SampleType>>(vtw * vth * vtd * num_channels * num_tsteps);
 
-#ifdef WITH_PYTHON_H
- 	py::gil_scoped_acquire acquire;
-#endif
+// #ifdef WITH_PYTHON_H
+//  	py::gil_scoped_release release;
+// #endif
 	size_t virtual_tstep = 0;
 	size_t total_views = 0;
 	std::map<size_t, size_t> ifd_offset_lookup;
@@ -497,14 +497,14 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 		++virtual_tstep;
 	}
 
-//	#pragma omp parallel for
+
 	for(auto i=0; i<total_views; i++){
 		CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
 	}
 
-#ifdef WITH_PYTHON_H
- 	py::gil_scoped_release release;
-#endif
+// #ifdef WITH_PYTHON_H
+//  	py::gil_scoped_acquire acquire;
+// #endif
 	return virtual_tile_data;
 }
 
@@ -690,6 +690,7 @@ void OmeTiffLoader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& co
 
 
 	if (cols.Step() == 1){
+        #pragma omp parallel for
 		for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
 			size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
 			std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+offset+virtual_x*vtw+initial_virtual_y);					
