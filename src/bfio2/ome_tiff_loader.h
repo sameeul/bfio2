@@ -652,7 +652,10 @@ void OmeTiffLoader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& co
 	const auto &view = fast_loader_->getBlockingResult();
 	auto i = view->tileRowIndex();
 	auto j = view->tileColIndex();
-	auto offset = ifd_offset_lookup.at(view->tileLayerIndex());	
+	size_t offset = 0;
+	if (ifd_offset_lookup.size()!=0) {
+		offset = ifd_offset_lookup.at(view->tileLayerIndex());
+	}
 	// take row slice from local tile and place it in virtual tile
 	// global_x = i*th + local_x;
 	// virtual_x = global_x - index_row_pixel_min;
