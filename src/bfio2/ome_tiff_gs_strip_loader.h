@@ -208,7 +208,7 @@ class OmeTiffGrayScaleStripLoader : public BfioTileLoader<DataType> {
   [[nodiscard]] size_t numberPyramidLevels() const override { return 1; }
   /// \brief Getter to the number of channels (default 1)
   /// \return Number of pixel's channels
-  [[nodiscard]] virtual size_t numberChannels() const {
+  [[nodiscard]] virtual size_t numberChannels() const override{
     return samples_per_pixel_;
   }
  private:

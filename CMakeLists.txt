@@ -66,11 +66,16 @@ if(BUILD_CLI)
 	if (OPENMP_FOUND)
 		target_link_libraries(bfio2 PRIVATE OpenMP::OpenMP_CXX)
 	endif()
+	if (APPLE)
+		set_target_properties(bfio2 PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+	endif()
 endif()
 
 #Library
 if(BUILD_LIB)
-	
+	if (APPLE)
+		set_target_properties(libbfio2 PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+	endif()
 	target_compile_definitions(libbfio2 PRIVATE WITH_PYTHON_H)
 	target_link_libraries(libbfio2 PRIVATE stdc++fs)
 	target_link_libraries(libbfio2 PRIVATE ${bfio2_LIBRARIES})
