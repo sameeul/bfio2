@@ -17,12 +17,13 @@ namespace py = pybind11;
 #include "ome_tiff_gs_strip_loader.h"
 #include "ome_tiff_gs_tile_loader.h"
 #include "sequence.h"
+#include "thread_pool.hpp"
 
 template <class SampleType>
 class OmeTiffLoader{
     private:
         std::shared_ptr<BfioTileLoader<SampleType>> tile_loader_;
-        mutable std::shared_ptr<std::map<std::tuple<size_t, size_t, size_t>, size_t>> ifd_data_ptr_;
+        mutable std::shared_ptr<std::vector<size_t>> ifd_data_ptr_;
 
         mutable std::shared_ptr<std::map<std::string, std::string>> xml_metadata_ptr_;
         std::shared_ptr<fl::FastLoaderGraph<fl::DefaultView<SampleType>>> fast_loader_;
@@ -34,7 +35,7 @@ class OmeTiffLoader{
         std::tuple<uint32_t, uint32_t>  CalculateTileDimensions() const;
         bool CheckTileStatus() const;
 
-        void ParseMetadata() const;
+        void ParseMetadata();
         size_t AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const;
 
         void SetZCT();
@@ -100,7 +101,7 @@ OmeTiffLoader<SampleType>::OmeTiffLoader(const std::string &fname_with_path, con
     // Set the configuration
     uint32_t radiusDepth = 0;
     uint32_t radiusHeight = 0;
-    uint32_t radiusWidth = 1;
+    uint32_t radiusWidth = 0;
 
     options->radius(radiusDepth, radiusHeight, radiusWidth);
     options->ordered(true);
@@ -249,9 +250,9 @@ template <class SampleType>
 std::string OmeTiffLoader<SampleType>::GetMetaDataValue(const std::string &metadata_key) const
 {
 	std::string value = "" ;
-	if (xml_metadata_ptr_ == nullptr){
-		ParseMetadata();		
-	}
+	// if (xml_metadata_ptr_ == nullptr){
+	// 	ParseMetadata();		
+	// }
 	try {
 		value = xml_metadata_ptr_->at(metadata_key);
 	}
@@ -262,7 +263,7 @@ std::string OmeTiffLoader<SampleType>::GetMetaDataValue(const std::string &metad
 }
 
 template <class SampleType>
-void OmeTiffLoader<SampleType>::ParseMetadata() const
+void OmeTiffLoader<SampleType>::ParseMetadata() 
 {	
 	TIFF *tiff_ = TIFFOpen(fname_.c_str(), "r");
 	if (tiff_ != nullptr) 
@@ -272,7 +273,7 @@ void OmeTiffLoader<SampleType>::ParseMetadata() const
 		pugi::xml_document doc;
 		pugi::xml_parse_result result = doc.load_string(infobuf);;
 		xml_metadata_ptr_ = std::make_shared<std::map<std::string, std::string>>();
-		ifd_data_ptr_ = std::make_shared<std::map<std::tuple<size_t, size_t, size_t>, size_t>>();
+		ifd_data_ptr_ = std::make_shared<std::vector<size_t>>(1);
 		if (result){
 			pugi::xml_node pixel = doc.child("OME").child("Image").child("Pixels");
 
@@ -280,6 +281,20 @@ void OmeTiffLoader<SampleType>::ParseMetadata() const
 				xml_metadata_ptr_->emplace(attr.name(), attr.value());
 			}
 		
+
+			auto it = xml_metadata_ptr_->find("SizeC");
+			if (it != xml_metadata_ptr_->end()) nc_ = stoi(it->second);
+
+			it = xml_metadata_ptr_->find("SizeZ");
+			if (it != xml_metadata_ptr_->end()) nz_ = stoi(it->second);
+
+			it = xml_metadata_ptr_->find("SizeT");
+			if (it != xml_metadata_ptr_->end()) nt_ = stoi(it->second);
+
+			//set up look up vector for ifp_data index
+			auto ifd_nums = nc_*nz_*nt_;
+			ifd_data_ptr_->at(0) = 99999999; //hack for now
+			for(auto i=1; i<ifd_nums;++i){ifd_data_ptr_->emplace_back(99999999);}
 
 			// get TiffData info
         	for (pugi::xml_node tiff_data: pixel.children("TiffData"))
@@ -293,7 +308,8 @@ void OmeTiffLoader<SampleType>::ParseMetadata() const
 					else if (strcmp(attr.name(),"IFD") == 0) {ifd = atoi(attr.value());}
 					else {continue;}
 				} 
-				ifd_data_ptr_->emplace(std::make_pair(std::make_tuple(z,c,t),ifd));
+
+				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd;
 			}
 
 			// get channel info
@@ -497,7 +513,17 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 		++virtual_tstep;
 	}
 
+	//std::cout << total_views<<" views requested "<<std::endl;
 
+	// thread_pool pool;
+	// pool.parallelize_loop(0, total_views, 
+	// 						[&rows, &cols, virtual_tile_data, &ifd_offset_lookup, this](const size_t &a, const size_t &b)
+	// 						{
+	// 							for (size_t i = a; i < b; i++)
+	// 							this->CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
+	// 						}
+	// 						);
+	//#pragma omp parallel for
 	for(auto i=0; i<total_views; i++){
 		CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
 	}
@@ -586,19 +612,18 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 template <class SampleType>
 void OmeTiffLoader<SampleType>::SetZCT()
 {
-	auto it = xml_metadata_ptr_->find("SizeC");
-	if (it != xml_metadata_ptr_->end()) nc_ = stoi(it->second);
+	// auto it = xml_metadata_ptr_->find("SizeC");
+	// if (it != xml_metadata_ptr_->end()) nc_ = stoi(it->second);
 	
-	it = xml_metadata_ptr_->find("SizeZ");
-	if (it != xml_metadata_ptr_->end()) nz_ = stoi(it->second);
+	// it = xml_metadata_ptr_->find("SizeZ");
+	// if (it != xml_metadata_ptr_->end()) nz_ = stoi(it->second);
 
-	it = xml_metadata_ptr_->find("SizeT");
-	if (it != xml_metadata_ptr_->end()) nt_ = stoi(it->second);
+	// it = xml_metadata_ptr_->find("SizeT");
+	// if (it != xml_metadata_ptr_->end()) nt_ = stoi(it->second);
 	
-	auto ifd_it = ifd_data_ptr_->find(std::make_tuple(size_t(0), size_t(0), size_t(0)));
-	if (ifd_it != ifd_data_ptr_->end()) ifd_offset_ = ifd_it->second;
+	ifd_offset_ = ifd_data_ptr_->at(0);
 
-	it = xml_metadata_ptr_->find("DimensionOrder");
+	auto it = xml_metadata_ptr_->find("DimensionOrder");
 	if (it != xml_metadata_ptr_->end())
 	{
 		auto dim_order_str = it->second;
@@ -616,11 +641,41 @@ template <class SampleType>
 size_t OmeTiffLoader<SampleType>::CalcIFDIndex (size_t z, size_t c, size_t t) const
 {
 	size_t ifd_dir = 0;
-	if (ifd_data_ptr_ != nullptr){
-		auto ifd_it = ifd_data_ptr_->find(std::make_tuple(z,c,t));
-		if (ifd_it != ifd_data_ptr_->end()){
-			ifd_dir = ifd_it->second;
-		} 
+	ifd_dir = ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z);
+	if (ifd_dir == 99999999){
+		switch (dim_order_)
+		{
+			case 1:
+				ifd_dir = nz_*nt_*c + nz_*t + z + ifd_offset_;
+				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
+				break;
+			case 2:
+				ifd_dir = ifd_dir = nz_*nc_*t + nz_*c + z + ifd_offset_;
+				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
+				break;
+			case 4:
+				ifd_dir = nt_*nc_*z + nt_*c + t + ifd_offset_;
+				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
+				break;
+			case 8:
+				ifd_dir = nt_*nz_*c + nt_*z + t + ifd_offset_;
+				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
+				break;
+			case 16:
+				ifd_dir = nc_*nt_*z + nc_*t + c + ifd_offset_;
+				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
+				break;
+			case 32:
+				ifd_dir = nc_*nz_*t + nc_*z + c + ifd_offset_;
+				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
+				break;
+			
+			default:
+				ifd_dir = nz_*nt_*c + nz_*t + z + ifd_offset_;
+				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
+				break;
+		}
+
 	}
 	else 
 	{
@@ -650,65 +705,68 @@ void OmeTiffLoader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& co
 	auto vth = index_true_row_pixel_max-rows.Start()+1;
 
 	const auto &view = fast_loader_->getBlockingResult();
-	auto i = view->tileRowIndex();
-	auto j = view->tileColIndex();
-	size_t offset = 0;
-	if (ifd_offset_lookup.size()!=0) {
-		offset = ifd_offset_lookup.at(view->tileLayerIndex());
-	}
-	// take row slice from local tile and place it in virtual tile
-	// global_x = i*th + local_x;
-	// virtual_x = global_x - index_row_pixel_min;
-	// initial_global_y = j*tw + initial_local_y;
-	// initial_virtual_y = initial_global_y - index_col_pixel_min;
-	size_t initial_local_x = rows.Start() > i*th ? rows.Start()-i*th : 0;	
-	// adjust for row stride
-	if (rows.Step()!=1)
-	{
-		size_t initial_global_x = i*th + initial_local_x;
-		initial_global_x = AdjustStride(rows.Start(), initial_global_x, rows.Step());
-		initial_local_x = initial_global_x - i*th;
-	}
-	size_t end_local_x = index_true_row_pixel_max < (i+1)*th ? index_true_row_pixel_max-i*th: th-1;
-	size_t initial_local_y = cols.Start() > j*tw ? cols.Start()-j*tw : 0;
-	// adjust for col stride
-	if (cols.Step()!=1)
-	{
-		size_t initial_global_y = j*tw + initial_local_y;
-		initial_global_y = AdjustStride(cols.Start(), initial_global_y, cols.Step());
-		initial_local_y = initial_global_y - j*tw;		
-	}
-
-	size_t end_local_y = index_true_col_pixel_max < (j+1)*tw ? index_true_col_pixel_max-j*tw : tw-1;
-	size_t initial_virtual_y = j*tw + initial_local_y - cols.Start();
-
-	auto vw = view->viewWidth();
-	auto vh = view->viewHeight();
-	auto vrw = view->radiusWidth();
-	auto vrh = view->radiusHeight();
-	auto vrd = view->radiusDepth();
-	auto view_ptr = view->viewOrigin() + vrd*vw*vh + vrh*vw;
-	auto virtual_tile_data_ptr = virtual_tile_data->data();
-	auto virtual_tile_data_begin = virtual_tile_data->begin();
-
-
-	if (cols.Step() == 1){
-        #pragma omp parallel for
-		for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
-			size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
-			std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+offset+virtual_x*vtw+initial_virtual_y);					
+	if (view != nullptr){
+		auto i = view->tileRowIndex();
+		auto j = view->tileColIndex();
+		size_t offset = 0;
+		if (ifd_offset_lookup.size()!=0) {
+			offset = ifd_offset_lookup.at(view->tileLayerIndex());
 		}
-	}
-	else 
-	{
-		for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
-			size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
-			for (size_t local_y=initial_local_y; local_y<=end_local_y; local_y=local_y+cols.Step())
-			{
-				size_t virtual_y = (j*tw + local_y - cols.Start())/cols.Step();
-				virtual_tile_data_ptr[offset+virtual_x*vtw+virtual_y] = *(view_ptr+local_x*vw+vrw+local_y);
+		// take row slice from local tile and place it in virtual tile
+		// global_x = i*th + local_x;
+		// virtual_x = global_x - index_row_pixel_min;
+		// initial_global_y = j*tw + initial_local_y;
+		// initial_virtual_y = initial_global_y - index_col_pixel_min;
+		size_t initial_local_x = rows.Start() > i*th ? rows.Start()-i*th : 0;	
+		// adjust for row stride
+		if (rows.Step()!=1)
+		{
+			size_t initial_global_x = i*th + initial_local_x;
+			initial_global_x = AdjustStride(rows.Start(), initial_global_x, rows.Step());
+			initial_local_x = initial_global_x - i*th;
+		}
+		size_t end_local_x = index_true_row_pixel_max < (i+1)*th ? index_true_row_pixel_max-i*th: th-1;
+		size_t initial_local_y = cols.Start() > j*tw ? cols.Start()-j*tw : 0;
+		// adjust for col stride
+		if (cols.Step()!=1)
+		{
+			size_t initial_global_y = j*tw + initial_local_y;
+			initial_global_y = AdjustStride(cols.Start(), initial_global_y, cols.Step());
+			initial_local_y = initial_global_y - j*tw;		
+		}
+
+		size_t end_local_y = index_true_col_pixel_max < (j+1)*tw ? index_true_col_pixel_max-j*tw : tw-1;
+		size_t initial_virtual_y = j*tw + initial_local_y - cols.Start();
+
+		auto vw = view->viewWidth();
+		auto vh = view->viewHeight();
+		auto vrw = view->radiusWidth();
+		auto vrh = view->radiusHeight();
+		auto vrd = view->radiusDepth();
+		auto view_ptr = view->viewOrigin() + vrd*vw*vh + vrh*vw;
+		auto virtual_tile_data_ptr = virtual_tile_data->data();
+		auto virtual_tile_data_begin = virtual_tile_data->begin();
+
+
+		if (cols.Step() == 1){
+		   // #pragma omp parallel for
+			for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
+				size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
+				std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+offset+virtual_x*vtw+initial_virtual_y);					
 			}
 		}
+		else 
+		{
+			for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
+				size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
+				for (size_t local_y=initial_local_y; local_y<=end_local_y; local_y=local_y+cols.Step())
+				{
+					size_t virtual_y = (j*tw + local_y - cols.Start())/cols.Step();
+					virtual_tile_data_ptr[offset+virtual_x*vtw+virtual_y] = *(view_ptr+local_x*vw+vrw+local_y);
+				}
+			}
+		}
+		view->returnToMemoryManager();
 	}
-	view->returnToMemoryManager();
+
 }

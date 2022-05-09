@@ -233,11 +233,15 @@
 
 void test12(){
     std::cout<<"Test 12 - Read the whole image"<<std::endl;
-    auto start = std::chrono::steady_clock::now(); 
-    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/mnt/hdd8/axle/data/polus-data/images/AICSImageIO/standard/tiff/3d-cell-viewer_ome_tiff_tiles.ome.tif",8);
+
+    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/home/ec2-user/data/3d-cell-viewer_ome_tiff_tiles_uncompressed.ome.tif",4);
     auto ih = imgLoader.GetImageHeight();
     auto iw = imgLoader.GetImageWidth();
-    std::shared_ptr<std::vector<uint16_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1));
+    auto id = imgLoader.GetImageDepth();
+    auto nc = imgLoader.GetChannelCount();
+    auto nt = imgLoader.GetTstepCount();
+    auto start = std::chrono::steady_clock::now(); 
+    std::shared_ptr<std::vector<uint16_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
     auto end = std::chrono::steady_clock::now(); 
     size_t count = 0, sum = 0;
     // for (auto x: *tileData){
