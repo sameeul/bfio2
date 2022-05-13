@@ -4,7 +4,7 @@
 #include <tuple>
 #include <memory>
 #include <vector>
-
+#include <execution>
 #include <fast_loader/fast_loader.h>
 #include <omp.h>
 #include <pugixml.hpp>
@@ -12,24 +12,37 @@
 #include <pybind11/pybind11.h>
 namespace py = pybind11;
 #endif
-
 #include "bfio_tile_loader.h"
 #include "ome_tiff_gs_strip_loader.h"
 #include "ome_tiff_gs_tile_loader.h"
 #include "sequence.h"
 #include "thread_pool.hpp"
+#ifndef FOLLY_UMH_H
+#define FOLLY_UMH_H
+#include "UninitializedMemoryHacks.h"
+FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(uint16_t)
+FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(uint32_t)
+FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(uint64_t)
+FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(int8_t)
+FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(int16_t)
+FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(int32_t)
+FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(int64_t)
+FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(float)
+FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(double)
+#endif
 
 template <class SampleType>
 class OmeTiffLoader{
     private:
         std::shared_ptr<BfioTileLoader<SampleType>> tile_loader_;
-        mutable std::shared_ptr<std::vector<size_t>> ifd_data_ptr_;
+        mutable std::unique_ptr<std::vector<size_t>> ifd_data_ptr_;
 
         mutable std::shared_ptr<std::map<std::string, std::string>> xml_metadata_ptr_;
-        std::shared_ptr<fl::FastLoaderGraph<fl::DefaultView<SampleType>>> fast_loader_;
+        std::unique_ptr<fl::FastLoaderGraph<fl::DefaultView<SampleType>>> fast_loader_;
         size_t n_threads_, nc_, nt_, nz_, ifd_offset_;
         short dim_order_;
         std::string fname_;
+	//	thread_pool pool_;
         
         std::tuple<uint32_t, uint32_t>  GetImageDimensions() const;
         std::tuple<uint32_t, uint32_t>  CalculateTileDimensions() const;
@@ -39,7 +52,7 @@ class OmeTiffLoader{
         size_t AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const;
 
         void SetZCT();
-        void CopyToVirtualTile(const Seq& rows, const Seq& cols, std::shared_ptr<std::vector<SampleType>> virtual_tile_data, const std::map<size_t, size_t>& ifd_offset_lookup);
+        void CopyToVirtualTile(const Seq& rows, const Seq& cols, const std::shared_ptr<std::vector<SampleType>> virtual_tile_data, const std::map<size_t, size_t>& ifd_offset_lookup);
 
     public:
         OmeTiffLoader(const std::string &fNameWithPath, const int num_threads=1);
@@ -104,12 +117,12 @@ OmeTiffLoader<SampleType>::OmeTiffLoader(const std::string &fname_with_path, con
     uint32_t radiusWidth = 0;
 
     options->radius(radiusDepth, radiusHeight, radiusWidth);
-    options->ordered(true);
+    options->ordered(false);
     options->borderCreatorConstant(0);
-    options->cacheCapacity(0,120);
-    options->viewAvailable(0,10);
+    options->cacheCapacity(0,200);
+    options->viewAvailable(0,16);
     // Create the Fast Loader Graph	
-    fast_loader_ = std::make_shared<fl::FastLoaderGraph<fl::DefaultView<SampleType>>>(std::move(options));
+    fast_loader_ = std::make_unique<fl::FastLoaderGraph<fl::DefaultView<SampleType>>>(std::move(options));
     // Execute the graph
     fast_loader_->executeGraph();
 };
@@ -273,7 +286,7 @@ void OmeTiffLoader<SampleType>::ParseMetadata()
 		pugi::xml_document doc;
 		pugi::xml_parse_result result = doc.load_string(infobuf);;
 		xml_metadata_ptr_ = std::make_shared<std::map<std::string, std::string>>();
-		ifd_data_ptr_ = std::make_shared<std::vector<size_t>>(1);
+		ifd_data_ptr_ = std::make_unique<std::vector<size_t>>(1);
 		if (result){
 			pugi::xml_node pixel = doc.child("OME").child("Image").child("Pixels");
 
@@ -474,7 +487,10 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 	auto vtd = (index_true_max_layer-index_true_min_layer)/layers.Step()+1;
 	auto num_channels = (index_true_max_channel-index_true_min_channel)/channels.Step()+1;
 	auto num_tsteps = (index_true_max_tstep-index_true_min_tstep)/tsteps.Step()+1;
-	std::shared_ptr<std::vector<SampleType>> virtual_tile_data = std::make_shared<std::vector<SampleType>>(vtw * vth * vtd * num_channels * num_tsteps);
+	std::shared_ptr<std::vector<SampleType>> virtual_tile_data = std::make_shared<std::vector<SampleType>>(0) ;
+	folly::resizeWithoutInitialization(*virtual_tile_data, vtw * vth * vtd * num_channels * num_tsteps);
+	// virtual_tile_data->reserve(vtw * vth * vtd * num_channels * num_tsteps);
+	// virtual_tile_data->resize(vtw * vth * vtd * num_channels * num_tsteps);
 
 // #ifdef WITH_PYTHON_H
 //  	py::gil_scoped_release release;
@@ -515,7 +531,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 
 	//std::cout << total_views<<" views requested "<<std::endl;
 
-	// thread_pool pool;
+	// thread_pool pool(4);
 	// pool.parallelize_loop(0, total_views, 
 	// 						[&rows, &cols, virtual_tile_data, &ifd_offset_lookup, this](const size_t &a, const size_t &b)
 	// 						{
@@ -568,10 +584,12 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 	auto vtd = (index_true_max_layer-index_true_min_layer)/layers.Step()+1;
 	auto num_channels = (index_true_max_channel-index_true_min_channel)/channels.Step()+1;
 	auto num_tsteps = (index_true_max_tstep-index_true_min_tstep)/tsteps.Step()+1;
-	std::shared_ptr<std::vector<SampleType>> virtual_tile_data = std::make_shared<std::vector<SampleType>>(vtw * vth * vtd * num_channels * num_tsteps) ;
-
+	std::shared_ptr<std::vector<SampleType>> virtual_tile_data = std::make_shared<std::vector<SampleType>>(0) ;
+	folly::resizeWithoutInitialization(*virtual_tile_data, vtw * vth * vtd * num_channels * num_tsteps);
+	// virtual_tile_data->reserve(vtw * vth * vtd * num_channels * num_tsteps);
+	// virtual_tile_data->resize(vtw * vth * vtd * num_channels * num_tsteps);
 	size_t virtual_tstep = 0;
-	size_t total_views = 0;
+	size_t total_views = 0; 
 	std::map<size_t, size_t> ifd_offset_lookup;
 	for (auto m = index_true_min_tstep; m<=index_true_max_tstep; m=m+tsteps.Step())
 	{
@@ -601,7 +619,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 		}
 		++virtual_tstep;
 	}
-	#pragma omp parallel for
+//	#pragma omp parallel for
 	for(auto i=0; i<total_views; i++){
 		CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
 	}
@@ -692,7 +710,7 @@ size_t OmeTiffLoader<SampleType>::CalcIFDIndex (size_t z, size_t c, size_t t) co
 }
 
 template <class SampleType>
-void OmeTiffLoader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& cols, std::shared_ptr<std::vector<SampleType>> virtual_tile_data, const std::map<size_t, size_t>& ifd_offset_lookup)
+void OmeTiffLoader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& cols, const std::shared_ptr<std::vector<SampleType>> virtual_tile_data, const std::map<size_t, size_t>& ifd_offset_lookup)
 {
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);
@@ -752,7 +770,7 @@ void OmeTiffLoader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& co
 		   // #pragma omp parallel for
 			for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
 				size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
-				std::copy(view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+offset+virtual_x*vtw+initial_virtual_y);					
+				std::copy(std::execution::par_unseq, view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+offset+virtual_x*vtw+initial_virtual_y);					
 			}
 		}
 		else 
