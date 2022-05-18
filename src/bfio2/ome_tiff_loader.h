@@ -41,6 +41,7 @@ class OmeTiffLoader{
         std::unique_ptr<fl::FastLoaderGraph<fl::DefaultView<SampleType>>> fast_loader_;
         size_t n_threads_, nc_, nt_, nz_, ifd_offset_;
         short dim_order_;
+		std::string fname_;
         
         std::tuple<uint32_t, uint32_t>  GetImageDimensions() const;
         std::tuple<uint32_t, uint32_t>  CalculateTileDimensions() const;
