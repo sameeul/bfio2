@@ -6,6 +6,7 @@
 #include "ome_tiff_loader.h"
 #include <sys/resource.h>
 #include <pugixml.hpp>
+#include <unistd.h>
 
 #include <numeric>
 
@@ -176,31 +177,31 @@
 
 // }
 
-// void test8()
-// {
-//     std::cout<<"Test 8 - Iterator check" <<std::endl;
-//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+void test8()
+{
+    std::cout<<"Test 8 - Iterator check" <<std::endl;
+    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/home/samee/axle/data/3d-cell-viewer_ome_tiff_tiles.ome.tif",1);
     
-//     size_t tw = 256;
-//     size_t th = 256;
-//     size_t rs = 200;
-//     size_t cs = 200;
-//     imgLoader.SetViewRequests(th, tw, rs, cs);
-//     auto ih = imgLoader.GetImageHeight();
-//     auto iw = imgLoader.GetImageWidth();
-//     for(size_t x=0; x<ih; x+=rs){
-// 		size_t r_min = x;
-// 		size_t r_max = x+rs-1;
-// 		for(size_t y=0; y<iw; y+=cs){
-// 			size_t c_min = y;
-// 			size_t c_max = y+cs-1;
-// 			auto tile_data = imgLoader.GetViewRequests(r_min, r_max, c_min, c_max);
-//             auto sum = std::accumulate(tile_data->begin(), tile_data->end(), size_t(0));
-//             std::cout << sum << std::endl;
-// 		}
-// 	}
+    size_t tw = 1024;
+    size_t th = 1024;
+    size_t rs = 1024;
+    size_t cs = 1024;
+    imgLoader.SetViewRequests(th, tw, rs, cs);
+    auto ih = imgLoader.GetImageHeight();
+    auto iw = imgLoader.GetImageWidth();
+    for(size_t x=0; x<ih; x+=rs){
+		size_t r_min = x;
+		size_t r_max = x+rs-1;
+		for(size_t y=0; y<iw; y+=cs){
+			size_t c_min = y;
+			size_t c_max = y+cs-1;
+			auto tile_data = imgLoader.GetViewRequests(r_min, r_max, c_min, c_max);
+            auto sum = std::accumulate(tile_data->begin(), tile_data->end(), size_t(0));
+            std::cout << sum << std::endl;
+		}
+	}
 
-// }
+}
 
 // void test9()
 // {
@@ -234,7 +235,7 @@
 void test12(){
     std::cout<<"Test 12 - Read the whole image"<<std::endl;
 
-    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/home/ec2-user/data/3d-cell-viewer_ome_tiff_tiles_uncompressed.ome.tif",4);
+    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/home/samee/axle/data/3d-cell-viewer_ome_tiff_tiles.ome.tif",4);
     auto ih = imgLoader.GetImageHeight();
     auto iw = imgLoader.GetImageWidth();
     auto id = imgLoader.GetImageDepth();
@@ -243,7 +244,7 @@ void test12(){
     auto start = std::chrono::steady_clock::now(); 
     std::shared_ptr<std::vector<uint16_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
     auto end = std::chrono::steady_clock::now(); 
-    size_t count = 0, sum = 0;
+    // size_t count = 0, sum = 0;
     // for (auto x: *tileData){
     //     sum +=x;
     //     // count++;
@@ -268,7 +269,7 @@ int main(){
     // test9();
     // test10();
     // test11();
-     test12();
+    for (auto i=0; i<5;i++) test12();
     //test13();
     return 0;
 

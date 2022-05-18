@@ -27,7 +27,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -ftree-vectorize -fopt-info-all=rep.txt")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake-modules")
 
@@ -44,6 +44,11 @@ message(STATUS "CXX Flags" ${CMAKE_CXX_FLAGS})
 #pugixml
 include_directories(lib/pugixml)
 
+#folly
+include_directories(lib/folly)
+
+#ThreadPool
+include_directories(lib/ThreadPool)
 
 set(SOURCE 
 	src/bfio2/ome_tiff_loader.h 

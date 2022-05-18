@@ -79,6 +79,7 @@ template<class DataType>
   void loadTileFromFile(std::shared_ptr<std::vector<DataType>> tile,
                         size_t index_row_global_tile, size_t index_col_global_tile, size_t index_layer_global_tile,
                         [[maybe_unused]] size_t level) override {
+//    std::cout << "cur dir " << TIFFCurrentDirectory(tiff_) << "switching to " << index_layer_global_tile << std::endl;
     TIFFSetDirectory(tiff_, index_layer_global_tile);
     TIFFReadTile(tiff_, (void*)(tile->data()), index_col_global_tile * tile_width_, index_row_global_tile * tile_height_, 0, 0);
   }

@@ -41,8 +41,6 @@ class OmeTiffLoader{
         std::unique_ptr<fl::FastLoaderGraph<fl::DefaultView<SampleType>>> fast_loader_;
         size_t n_threads_, nc_, nt_, nz_, ifd_offset_;
         short dim_order_;
-        std::string fname_;
-	//	thread_pool pool_;
         
         std::tuple<uint32_t, uint32_t>  GetImageDimensions() const;
         std::tuple<uint32_t, uint32_t>  CalculateTileDimensions() const;
@@ -117,10 +115,10 @@ OmeTiffLoader<SampleType>::OmeTiffLoader(const std::string &fname_with_path, con
     uint32_t radiusWidth = 0;
 
     options->radius(radiusDepth, radiusHeight, radiusWidth);
-    options->ordered(false);
+    options->ordered(true);
     options->borderCreatorConstant(0);
-    options->cacheCapacity(0,200);
-    options->viewAvailable(0,16);
+    options->cacheCapacity(0,96);
+    options->viewAvailable(0,36);
     // Create the Fast Loader Graph	
     fast_loader_ = std::make_unique<fl::FastLoaderGraph<fl::DefaultView<SampleType>>>(std::move(options));
     // Execute the graph
@@ -312,7 +310,7 @@ void OmeTiffLoader<SampleType>::ParseMetadata()
 			// get TiffData info
         	for (pugi::xml_node tiff_data: pixel.children("TiffData"))
 			{
-				size_t c=0, t=0, z=0, ifd;
+				size_t c=0, t=0, z=0, ifd=0;
 				for (pugi::xml_attribute attr: tiff_data.attributes())
 				{
 					if (strcmp(attr.name(),"FirstC") == 0) {c = atoi(attr.value());}
@@ -448,7 +446,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetViewReque
 	{
 		for (int j = min_col_index; j <= max_col_index; ++j)
 		{
-			CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);	
+			CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
 		}
 	}
 
@@ -489,12 +487,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 	auto num_tsteps = (index_true_max_tstep-index_true_min_tstep)/tsteps.Step()+1;
 	std::shared_ptr<std::vector<SampleType>> virtual_tile_data = std::make_shared<std::vector<SampleType>>(0) ;
 	folly::resizeWithoutInitialization(*virtual_tile_data, vtw * vth * vtd * num_channels * num_tsteps);
-	// virtual_tile_data->reserve(vtw * vth * vtd * num_channels * num_tsteps);
-	// virtual_tile_data->resize(vtw * vth * vtd * num_channels * num_tsteps);
 
-// #ifdef WITH_PYTHON_H
-//  	py::gil_scoped_release release;
-// #endif
 	size_t virtual_tstep = 0;
 	size_t total_views = 0;
 	std::map<size_t, size_t> ifd_offset_lookup;
@@ -517,6 +510,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 					for (auto j = min_col_index; j <= max_col_index; ++j)
 					{	
 						auto layer = CalcIFDIndex(k,l,m);
+
 						fast_loader_->requestView(i, j, layer, 0);
 						total_views++;
 						ifd_offset_lookup.emplace(layer, offset);
@@ -531,22 +525,25 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 
 	//std::cout << total_views<<" views requested "<<std::endl;
 
-	// thread_pool pool(4);
-	// pool.parallelize_loop(0, total_views, 
-	// 						[&rows, &cols, virtual_tile_data, &ifd_offset_lookup, this](const size_t &a, const size_t &b)
-	// 						{
-	// 							for (size_t i = a; i < b; i++)
-	// 							this->CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
-	// 						}
-	// 						);
-	//#pragma omp parallel for
-	for(auto i=0; i<total_views; i++){
-		CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
-	}
+#ifdef WITH_PYTHON_H
+ 	py::gil_scoped_release release;
+#endif
+	thread_pool pool(12);
+	pool.parallelize_loop(0, total_views, 
+							[&rows, &cols, virtual_tile_data, &ifd_offset_lookup, this](const size_t &a, const size_t &b)
+							{
+								for (size_t i = a; i < b; i++)
+								this->CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
+							}
+							);
+//	#pragma omp parallel for
+	// for(auto i=0; i<total_views; i++){
+	// 	CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
+	// }
 
-// #ifdef WITH_PYTHON_H
-//  	py::gil_scoped_acquire acquire;
-// #endif
+#ifdef WITH_PYTHON_H
+ 	py::gil_scoped_acquire acquire;
+#endif
 	return virtual_tile_data;
 }
 
@@ -586,8 +583,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 	auto num_tsteps = (index_true_max_tstep-index_true_min_tstep)/tsteps.Step()+1;
 	std::shared_ptr<std::vector<SampleType>> virtual_tile_data = std::make_shared<std::vector<SampleType>>(0) ;
 	folly::resizeWithoutInitialization(*virtual_tile_data, vtw * vth * vtd * num_channels * num_tsteps);
-	// virtual_tile_data->reserve(vtw * vth * vtd * num_channels * num_tsteps);
-	// virtual_tile_data->resize(vtw * vth * vtd * num_channels * num_tsteps);
+
 	size_t virtual_tstep = 0;
 	size_t total_views = 0; 
 	std::map<size_t, size_t> ifd_offset_lookup;
