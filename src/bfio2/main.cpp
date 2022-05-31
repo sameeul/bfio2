@@ -7,7 +7,7 @@
 #include <sys/resource.h>
 #include <pugixml.hpp>
 #include <unistd.h>
-
+#include <cstdlib>
 #include <numeric>
 
 // size_t partial_sum(std::shared_ptr<std::vector<tile_data_type>> data, size_t row_min, size_t row_max,  size_t col_min, size_t col_max, size_t col_width)
@@ -180,7 +180,7 @@
 void test8()
 {
     std::cout<<"Test 8 - Iterator check" <<std::endl;
-    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/home/samee/axle/data/3d-cell-viewer_ome_tiff_tiles.ome.tif",1);
+    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/home/ec2-user/data/3d-cell-viewer_ome_tiff_tiles.ome.tif",1);
     
     size_t tw = 1024;
     size_t th = 1024;
@@ -235,27 +235,55 @@ void test8()
 void test12(){
     std::cout<<"Test 12 - Read the whole image"<<std::endl;
 
-    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/home/samee/axle/data/3d-cell-viewer_ome_tiff_tiles.ome.tif",4);
+    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/home/ec2-user/data/s_1_t_10_c_3_z_1_tiff_tiles.ome.tif",4);
     auto ih = imgLoader.GetImageHeight();
     auto iw = imgLoader.GetImageWidth();
     auto id = imgLoader.GetImageDepth();
     auto nc = imgLoader.GetChannelCount();
     auto nt = imgLoader.GetTstepCount();
-    auto start = std::chrono::steady_clock::now(); 
+    auto start = std::chrono::high_resolution_clock::now(); 
     std::shared_ptr<std::vector<uint16_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
-    auto end = std::chrono::steady_clock::now(); 
-    // size_t count = 0, sum = 0;
+    auto end = std::chrono::high_resolution_clock::now(); 
+    size_t count = 0, sum = 0;
     // for (auto x: *tileData){
     //     sum +=x;
     //     // count++;
     //     // std::cout<<x<<std::endl;
     //     // if (count==10) break;
     // }
-    // std::cout <<"Virtual tile total: "<< sum<<std::endl;
+    std::cout <<"Virtual tile total: "<< sum<<std::endl;
     std::chrono::duration<double> elapsed_seconds = end-start;
     std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
 }
 
+void test13(){
+
+    std::shared_ptr<std::vector<uint16_t>> virtual_tile_data_1 = std::make_shared<std::vector<uint16_t>>(0) ;
+	folly::resizeWithoutInitialization(*virtual_tile_data_1, 1024 * 1024 * 666);
+
+    std::vector<uint16_t> src_data(1024*1024);
+    for(auto i=0;i<1024*1024;i++){src_data[i] = rand()%100;}
+    auto start = std::chrono::high_resolution_clock::now(); 
+    for (auto i=0;i<666;++i){
+        auto offset = i*1024*1024;
+        memcpy((void *)(&(*(virtual_tile_data_1->data()+offset))), (void *)(&(src_data[0])), sizeof(uint16_t)*1024*1024);
+    }
+    auto end = std::chrono::high_resolution_clock::now(); 
+    std::chrono::duration<double> elapsed_seconds = end-start;
+    std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
+
+    std::shared_ptr<std::vector<uint16_t>> virtual_tile_data_2 = std::make_shared<std::vector<uint16_t>>(0) ;
+	folly::resizeWithoutInitialization(*virtual_tile_data_2, 1024 * 1024 );
+    start = std::chrono::high_resolution_clock::now(); 
+        for (auto i=0;i<666;++i){
+        auto offset = 0;
+        memcpy((void *)(&(*(virtual_tile_data_2->data()+offset))), (void *)(&(src_data[0])), sizeof(uint16_t)*1024*1024);
+    }
+    end = std::chrono::high_resolution_clock::now(); 
+    elapsed_seconds = end-start;
+    std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
+
+}
 
 int main(){
     // test1();

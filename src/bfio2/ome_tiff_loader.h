@@ -118,8 +118,17 @@ OmeTiffLoader<SampleType>::OmeTiffLoader(const std::string &fname_with_path, con
     options->radius(radiusDepth, radiusHeight, radiusWidth);
     options->ordered(true);
     options->borderCreatorConstant(0);
-    options->cacheCapacity(0,96);
-    options->viewAvailable(0,36);
+
+	if (nc_*nz_*nt_ < 49)
+	{
+		options->cacheCapacity(0,0);
+		options->viewAvailable(0,8);
+	}
+	else
+	{
+		options->cacheCapacity(0,96);
+		options->viewAvailable(0,36);
+	}
     // Create the Fast Loader Graph	
     fast_loader_ = std::make_unique<fl::FastLoaderGraph<fl::DefaultView<SampleType>>>(std::move(options));
     // Execute the graph
@@ -524,12 +533,14 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 		++virtual_tstep;
 	}
 
-	//std::cout << total_views<<" views requested "<<std::endl;
 
 #ifdef WITH_PYTHON_H
  	py::gil_scoped_release release;
 #endif
-	thread_pool pool(12);
+	short pool_worker;
+	if (total_views < 48) {pool_worker = 4;}
+	else {pool_worker = 12;}
+	thread_pool pool(pool_worker);
 	pool.parallelize_loop(0, total_views, 
 							[&rows, &cols, virtual_tile_data, &ifd_offset_lookup, this](const size_t &a, const size_t &b)
 							{
@@ -537,7 +548,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 								this->CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
 							}
 							);
-//	#pragma omp parallel for
+	// #pragma omp parallel for
 	// for(auto i=0; i<total_views; i++){
 	// 	CopyToVirtualTile(rows, cols, virtual_tile_data, ifd_offset_lookup);
 	// }
@@ -765,7 +776,7 @@ void OmeTiffLoader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& co
 
 		if (cols.Step() == 1){
 		   // #pragma omp parallel for
-			for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
+			for (size_t local_x=initial_local_x; local_x<end_local_x+1; ++local_x){
 				size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
 				std::copy(std::execution::par_unseq, view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+offset+virtual_x*vtw+initial_virtual_y);					
 			}

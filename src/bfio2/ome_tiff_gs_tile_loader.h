@@ -33,7 +33,7 @@ template<class DataType>
       : BfioTileLoader<DataType>("OmeTiffGrayScaleTileLoader", number_threads, file_path) {
 
     // Open the file
-    tiff_ = TIFFOpen(file_path.c_str(), "rm");
+    tiff_ = TIFFOpen(file_path.c_str(), "r");
     if (tiff_ != nullptr) {
       if (TIFFIsTiled(tiff_) == 0) { throw (std::runtime_error("Tile Loader ERROR: The file is not tiled.")); }
       // Load/parse header
@@ -78,8 +78,7 @@ template<class DataType>
   /// @param level Tile's level
   void loadTileFromFile(std::shared_ptr<std::vector<DataType>> tile,
                         size_t index_row_global_tile, size_t index_col_global_tile, size_t index_layer_global_tile,
-                        [[maybe_unused]] size_t level) override {
-//    std::cout << "cur dir " << TIFFCurrentDirectory(tiff_) << "switching to " << index_layer_global_tile << std::endl;
+                        [[maybe_unused]] size_t level) override {   
     TIFFSetDirectory(tiff_, index_layer_global_tile);
     TIFFReadTile(tiff_, (void*)(tile->data()), index_col_global_tile * tile_width_, index_row_global_tile * tile_height_, 0, 0);
   }
