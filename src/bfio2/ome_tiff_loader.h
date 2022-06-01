@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <execution>
+#include <thread>
 #include <fast_loader/fast_loader.h>
 #include <omp.h>
 #include <pugixml.hpp>
@@ -30,6 +31,8 @@ FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(int64_t)
 FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(float)
 FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(double)
 #endif
+
+constexpr short fl_cut_off = 49;
 
 template <class SampleType>
 class OmeTiffLoader{
@@ -118,16 +121,17 @@ OmeTiffLoader<SampleType>::OmeTiffLoader(const std::string &fname_with_path, con
     options->radius(radiusDepth, radiusHeight, radiusWidth);
     options->ordered(true);
     options->borderCreatorConstant(0);
-
-	if (nc_*nz_*nt_ < 49)
+	auto processor_count = std::thread::hardware_concurrency();
+	if (processor_count == 0){processor_count = 1;}
+	if (nc_*nz_*nt_ < fl_cut_off) 
 	{
 		options->cacheCapacity(0,0);
-		options->viewAvailable(0,8);
+		options->viewAvailable(0,processor_count*2);
 	}
 	else
 	{
-		options->cacheCapacity(0,96);
-		options->viewAvailable(0,36);
+		options->cacheCapacity(0,processor_count*24);
+		options->viewAvailable(0,processor_count*3);
 	}
     // Create the Fast Loader Graph	
     fast_loader_ = std::make_unique<fl::FastLoaderGraph<fl::DefaultView<SampleType>>>(std::move(options));
@@ -537,9 +541,11 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 #ifdef WITH_PYTHON_H
  	py::gil_scoped_release release;
 #endif
+	auto processor_count = std::thread::hardware_concurrency();
+	if (processor_count == 0){processor_count = 1;}
 	short pool_worker;
-	if (total_views < 48) {pool_worker = 4;}
-	else {pool_worker = 12;}
+	if (total_views < fl_cut_off) {pool_worker = processor_count;}
+	else {pool_worker = 3*processor_count;}
 	thread_pool pool(pool_worker);
 	pool.parallelize_loop(0, total_views, 
 							[&rows, &cols, virtual_tile_data, &ifd_offset_lookup, this](const size_t &a, const size_t &b)
