@@ -1,4 +1,16 @@
-from .libbfio2 import OmeTiffLoader, Seq
+from . import libbfio2 as bfio2
+from .libbfio2 import Seq, get_tiff_type,\
+                    OmeTiffLoaderUint8, \
+                    OmeTiffLoaderUint16, \
+                    OmeTiffLoaderUint32, \
+                    OmeTiffLoaderUint64, \
+                    OmeTiffLoaderInt8, \
+                    OmeTiffLoaderInt16, \
+                    OmeTiffLoaderInt32, \
+                    OmeTiffLoaderInt64, \
+                    OmeTiffLoaderFloat, \
+                    OmeTiffLoaderDouble
+            
 import numpy
 
 
@@ -6,11 +18,28 @@ class BioReader:
 
     READ_ONLY_MESSAGE = "{} is read-only."
     
+
+
     def __init__(self, file_name, num_threads=1):
+
+        img_cls_dict_ = {
+            "uint8_t":OmeTiffLoaderUint8,
+            "uint16_t":OmeTiffLoaderUint16,
+            "uint32_t":OmeTiffLoaderUint32,
+            "uint64_t":OmeTiffLoaderUint64,
+            "int8_t":OmeTiffLoaderInt8,
+            "int16_t":OmeTiffLoaderInt16,
+            "int32_t":OmeTiffLoaderInt32,
+            "int64_t":OmeTiffLoaderInt64,
+            "float":OmeTiffLoaderFloat,
+            "double":OmeTiffLoaderDouble,
+        }
         self._file_name = file_name
         self._DIMS = {}
         if file_name.endswith('.ome.tif'):
-            self._image_reader = OmeTiffLoader(file_name, num_threads)
+            tiff_type = bfio2.get_tiff_type(file_name)
+            self._image_reader = img_cls_dict_[tiff_type](file_name, num_threads)
+            
             self._Y = self._image_reader.get_image_height()
             self._X = self._image_reader.get_image_width()
             self._Z = self._image_reader.get_image_depth()
@@ -383,7 +412,7 @@ class BioReader:
     def _val_dims(self, xyz, axis):
         assert axis in 'XYZCT'
         if xyz == None:
-            xyz = [0,self._DIMS[axis]-1]
+            xyz = [0,self._DIMS[axis]]
         else:
             assert len(xyz) == 2 or len(xyz) == 3, \
                 '{} must be a list or tuple of length 2 or 3.'.format(axis)

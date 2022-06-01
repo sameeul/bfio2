@@ -33,7 +33,7 @@ template<class DataType>
       : BfioTileLoader<DataType>("OmeTiffGrayScaleTileLoader", number_threads, file_path) {
 
     // Open the file
-    tiff_ = TIFFOpen(file_path.c_str(), "rm");
+    tiff_ = TIFFOpen(file_path.c_str(), "r");
     if (tiff_ != nullptr) {
       if (TIFFIsTiled(tiff_) == 0) { throw (std::runtime_error("Tile Loader ERROR: The file is not tiled.")); }
       // Load/parse header
@@ -78,69 +78,9 @@ template<class DataType>
   /// @param level Tile's level
   void loadTileFromFile(std::shared_ptr<std::vector<DataType>> tile,
                         size_t index_row_global_tile, size_t index_col_global_tile, size_t index_layer_global_tile,
-                        [[maybe_unused]] size_t level) override {
-    tdata_t tiff_tile = nullptr;
-    tiff_tile = _TIFFmalloc(TIFFTileSize(tiff_));
+                        [[maybe_unused]] size_t level) override {   
     TIFFSetDirectory(tiff_, index_layer_global_tile);
-    TIFFReadTile(tiff_, tiff_tile, index_col_global_tile * tile_width_, index_row_global_tile * tile_height_, 0, 0);
-    std::stringstream message;
-    switch (sample_format_) {
-      case 1 :
-        switch (bits_per_sample_) {
-          case 8:loadTile<uint8_t>(tiff_tile, tile);
-            break;
-          case 16:loadTile<uint16_t>(tiff_tile, tile);
-            break;
-          case 32:loadTile<uint32_t>(tiff_tile, tile);
-            break;
-          case 64:loadTile<uint64_t>(tiff_tile, tile);
-            break;
-          default:
-            message
-                << "Tile Loader ERROR: The data format is not supported for unsigned integer, number bits per pixel = "
-                << bits_per_sample_;
-            throw (std::runtime_error(message.str()));
-        }
-        break;
-      case 2:
-        switch (bits_per_sample_) {
-          case 8:loadTile<int8_t>(tiff_tile, tile);
-            break;
-          case 16:loadTile<int16_t>(tiff_tile, tile);
-            break;
-          case 32:loadTile<int32_t>(tiff_tile, tile);
-            break;
-          case 64:loadTile<int64_t>(tiff_tile, tile);
-            break;
-          default:
-            message
-                << "Tile Loader ERROR: The data format is not supported for signed integer, number bits per pixel = "
-                << bits_per_sample_;
-            throw (std::runtime_error(message.str()));
-        }
-        break;
-      case 3:
-        switch (bits_per_sample_) {
-          case 8:
-          case 16:
-          case 32:
-            loadTile<float>(tiff_tile, tile);
-            break;
-          case 64:
-            loadTile<double>(tiff_tile, tile);
-            break;
-          default:
-            message
-                << "Tile Loader ERROR: The data format is not supported for float, number bits per pixel = "
-                << bits_per_sample_;
-            throw (std::runtime_error(message.str()));
-        }
-        break;
-      default:message << "Tile Loader ERROR: The data format is not supported, sample format = " << sample_format_;
-        throw (std::runtime_error(message.str()));
-    }
-
-    _TIFFfree(tiff_tile);
+    TIFFReadTile(tiff_, (void*)(tile->data()), index_col_global_tile * tile_width_, index_row_global_tile * tile_height_, 0, 0);
   }
 
   /// @brief Copy Method for the OmeTiffGrayScaleTileLoader
@@ -175,18 +115,8 @@ template<class DataType>
   [[nodiscard]] size_t numberPyramidLevels() const override { return 1; }
   /// \brief Getter to the number of channels (default 1)
   /// \return Number of pixel's channels
-  [[nodiscard]] virtual size_t numberChannels() const {
+  [[nodiscard]] virtual size_t numberChannels() const override {
     return samples_per_pixel_;
-  }
- private:
-  /// @brief Private function to copy and cast the values
-  /// @tparam FileType Type inside the file
-  /// @param src Piece of memory coming from libtiff
-  /// @param dest Piece of memory to fill
-  template<typename FileType>
-  void loadTile(tdata_t src, std::shared_ptr<std::vector<DataType>> &dest) {
-#pragma omp simd
-    for (size_t i = 0; i < tile_height_ * tile_width_ * samples_per_pixel_; ++i) { dest->data()[i] = (DataType) ((FileType *) (src))[i]; }
   }
 
 };
