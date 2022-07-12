@@ -14,8 +14,7 @@
 namespace py = pybind11;
 #endif
 #include "bfio_tile_loader.h"
-#include "ome_tiff_gs_strip_loader.h"
-#include "ome_tiff_gs_tile_loader.h"
+#include "omezarr.h"
 #include "sequence.h"
 #include "thread_pool.hpp"
 #ifndef FOLLY_UMH_H
@@ -33,9 +32,8 @@ FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(double)
 #endif
 
 
-
 template <class SampleType>
-class OmeTiffLoader{
+class OmeZarrLoader{
     private:
         std::shared_ptr<BfioTileLoader<SampleType>> tile_loader_;
         mutable std::unique_ptr<std::vector<size_t>> ifd_data_ptr_;
@@ -45,21 +43,20 @@ class OmeTiffLoader{
         size_t n_threads_, nc_, nt_, nz_, ifd_offset_;
         short dim_order_;
 		std::string fname_;
-        short fl_cut_off = 49;
-		
+		short fl_cut_off = 49;
+        
         std::tuple<uint32_t, uint32_t>  GetImageDimensions() const;
         std::tuple<uint32_t, uint32_t>  CalculateTileDimensions() const;
         bool CheckTileStatus() const;
 
-        void ParseMetadata();
         size_t AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const;
 
         void SetZCT();
         void CopyToVirtualTile(const Seq& rows, const Seq& cols, const std::shared_ptr<std::vector<SampleType>> virtual_tile_data, const std::map<size_t, size_t>& ifd_offset_lookup);
 
     public:
-        OmeTiffLoader(const std::string &fNameWithPath, const int num_threads=1);
-        ~OmeTiffLoader();
+        OmeZarrLoader(const std::string &fNameWithPath, const int num_threads=1);
+        ~OmeZarrLoader();
  
         std::shared_ptr<std::vector<SampleType>> GetTileData(size_t const row, size_t const col, size_t const layer=0, size_t const channel=0, size_t const tstep=0);
         std::shared_ptr<std::vector<SampleType>> GetTileDataByIndex(size_t const tile_index, size_t const channel=0, size_t const tstep=0);
@@ -86,7 +83,7 @@ class OmeTiffLoader{
 };
 
 template <class SampleType>
-OmeTiffLoader<SampleType>::OmeTiffLoader(const std::string &fname_with_path, const int num_threads) : 
+OmeZarrLoader<SampleType>::OmeZarrLoader(const std::string &fname_with_path, const int num_threads) : 
 	tile_loader_(nullptr),
 	ifd_data_ptr_(nullptr),
 	xml_metadata_ptr_(nullptr),
@@ -100,18 +97,13 @@ OmeTiffLoader<SampleType>::OmeTiffLoader(const std::string &fname_with_path, con
 	fname_(fname_with_path),
 	tile_coordinate_list_(0)
 {
-	ParseMetadata();
-	SetZCT();
-	if (CheckTileStatus())
-	{
-		tile_loader_ = std::make_shared<OmeTiffGrayScaleTileLoader<SampleType>>(n_threads_, fname_);
-	}
-	else 
-	{
-		// since the file is not tiled, we provide the tile dimensions
-		auto [tw, th]  = CalculateTileDimensions();		
-		tile_loader_ = std::make_shared<OmeTiffGrayScaleStripLoader<SampleType>>(n_threads_, fname_, tw, th, 1);
-	}
+	//ParseMetadata();
+	//SetZCT();
+	tile_loader_ = std::make_shared<OmeZarrTileLoader<SampleType>>(n_threads_, fname_);
+
+	nc_ = tile_loader_->numberChannels();
+	nz_ = static_cast<size_t>(ceil(1.0*tile_loader_->fullDepth(0)/ tile_loader_->tileDepth(0)));
+	nt_ = tile_loader_->numTsteps();
 
     auto options = std::make_unique<fl::FastLoaderConfiguration<fl::DefaultView<SampleType>>>(tile_loader_);
     // Set the configuration
@@ -141,7 +133,7 @@ OmeTiffLoader<SampleType>::OmeTiffLoader(const std::string &fname_with_path, con
 };
 
 template <class SampleType>
-OmeTiffLoader<SampleType>::~OmeTiffLoader(){
+OmeZarrLoader<SampleType>::~OmeZarrLoader(){
 	xml_metadata_ptr_ = nullptr;
 	ifd_data_ptr_ = nullptr;	
     fast_loader_->finishRequestingViews(); 
@@ -149,17 +141,17 @@ OmeTiffLoader<SampleType>::~OmeTiffLoader(){
 	tile_loader_ = nullptr;
 };
 
-template <class SampleType> size_t OmeTiffLoader<SampleType>::GetRowTileCount() const {return tile_loader_->numberTileHeight();}
-template <class SampleType> size_t OmeTiffLoader<SampleType>::GetColumnTileCount() const {return tile_loader_->numberTileWidth();}
-template <class SampleType> size_t OmeTiffLoader<SampleType>::GetImageHeight() const {return tile_loader_->fullHeight(0);}
-template <class SampleType> size_t OmeTiffLoader<SampleType>::GetImageWidth() const {return tile_loader_->fullWidth(0);}
-template <class SampleType> size_t OmeTiffLoader<SampleType>::GetImageDepth() const {return nz_;}
-template <class SampleType> size_t OmeTiffLoader<SampleType>::GetTileHeight() const {return tile_loader_->tileHeight(0);}
-template <class SampleType> size_t OmeTiffLoader<SampleType>::GetTileWidth() const {return tile_loader_->tileWidth(0);}
-template <class SampleType> size_t OmeTiffLoader<SampleType>::GetTileDepth() const {return tile_loader_->tileDepth(0);}
+template <class SampleType> size_t OmeZarrLoader<SampleType>::GetRowTileCount() const {return tile_loader_->numberTileHeight();}
+template <class SampleType> size_t OmeZarrLoader<SampleType>::GetColumnTileCount() const {return tile_loader_->numberTileWidth();}
+template <class SampleType> size_t OmeZarrLoader<SampleType>::GetImageHeight() const {return tile_loader_->fullHeight(0);}
+template <class SampleType> size_t OmeZarrLoader<SampleType>::GetImageWidth() const {return tile_loader_->fullWidth(0);}
+template <class SampleType> size_t OmeZarrLoader<SampleType>::GetImageDepth() const {return nz_;}
+template <class SampleType> size_t OmeZarrLoader<SampleType>::GetTileHeight() const {return tile_loader_->tileHeight(0);}
+template <class SampleType> size_t OmeZarrLoader<SampleType>::GetTileWidth() const {return tile_loader_->tileWidth(0);}
+template <class SampleType> size_t OmeZarrLoader<SampleType>::GetTileDepth() const {return tile_loader_->tileDepth(0);}
 
 template <class SampleType>
-std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetTileData(size_t const row, size_t const col, size_t const layer, size_t const channel, size_t const tstep)
+std::shared_ptr<std::vector<SampleType>> OmeZarrLoader<SampleType>::GetTileData(size_t const row, size_t const col, size_t const layer, size_t const channel, size_t const tstep)
 {
     auto tw = tile_loader_->tileWidth(0);
     auto th = tile_loader_->tileHeight(0);
@@ -170,7 +162,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetTileData(
 	auto actual_th = ih > (row+1)*th -1 ? th : ih - row*th;
 
     std::shared_ptr<std::vector<SampleType>> tile_data = std::make_shared<std::vector<SampleType>>(actual_tw * actual_th * td);
-	auto ifd_index = CalcIFDIndex(layer, channel, tstep);
+	auto ifd_index =  CalcIFDIndex(layer, channel, tstep);
 	fast_loader_->requestView(row, col, ifd_index, 0);
 	const auto &view = fast_loader_->getBlockingResult();
 	auto vw = view->viewWidth();
@@ -193,51 +185,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetTileData(
 }
 
 template <class SampleType>
-std::tuple<uint32_t, uint32_t>  OmeTiffLoader<SampleType>::GetImageDimensions  () const
-{
-	TIFF *tiff_ = TIFFOpen(fname_.c_str(), "r");
-	if (tiff_ != nullptr) 
-	{
-		uint32_t w, l, ndirs;
-		TIFFGetField(tiff_, TIFFTAG_IMAGEWIDTH, &w);
-		TIFFGetField(tiff_, TIFFTAG_IMAGELENGTH, &l);
-		TIFFClose(tiff_);
-		return {w, l};	
-	} 
-	else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
-}
-
-template <class SampleType>
-std::tuple<uint32_t, uint32_t>  OmeTiffLoader<SampleType>::CalculateTileDimensions() const
-{
-	auto [w, h] = GetImageDimensions();
-	uint32_t default_width = 1024;
-	uint32_t default_height = 1024;
-	w = std::min ({ w, default_width });
-	h = std::min ({ h, default_height });
-	return {w, h};
-}
-
-template <class SampleType>
-bool OmeTiffLoader<SampleType>::CheckTileStatus() const
-{
-	TIFF *tiff_ = TIFFOpen(fname_.c_str(), "r");
-	if (tiff_ != nullptr) 
-	{
-		if (TIFFIsTiled(tiff_) == 0) 
-		{ 
-			TIFFClose(tiff_);
-			return false;
-			} else 
-			{
-			TIFFClose(tiff_);
-			return true;
-			}
-	} else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
-}
-
-template <class SampleType>
-std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetTileDataByIndex(size_t const tile_index, size_t const channel, size_t const tstep)
+std::shared_ptr<std::vector<SampleType>> OmeZarrLoader<SampleType>::GetTileDataByIndex(size_t const tile_index, size_t const channel, size_t const tstep)
 {
 	size_t num_col_tiles = GetColumnTileCount();	
 	size_t num_row_tiles = GetRowTileCount();
@@ -250,7 +198,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetTileDataB
 }
 
 template <class SampleType>
-std::pair<size_t, size_t> OmeTiffLoader<SampleType>::GetTileContainingPixel(size_t const row_pixel_index, size_t const col_pixel_index) const
+std::pair<size_t, size_t> OmeZarrLoader<SampleType>::GetTileContainingPixel(size_t const row_pixel_index, size_t const col_pixel_index) const
 {
 	size_t th = GetTileHeight();	
 	size_t tw = GetTileWidth();
@@ -273,7 +221,7 @@ std::pair<size_t, size_t> OmeTiffLoader<SampleType>::GetTileContainingPixel(size
 }
 
 template <class SampleType>
-std::string OmeTiffLoader<SampleType>::GetMetaDataValue(const std::string &metadata_key) const
+std::string OmeZarrLoader<SampleType>::GetMetaDataValue(const std::string &metadata_key) const
 {
 	std::string value = "" ;
 	// if (xml_metadata_ptr_ == nullptr){
@@ -288,74 +236,9 @@ std::string OmeTiffLoader<SampleType>::GetMetaDataValue(const std::string &metad
 	return value;
 }
 
-template <class SampleType>
-void OmeTiffLoader<SampleType>::ParseMetadata() 
-{	
-	TIFF *tiff_ = TIFFOpen(fname_.c_str(), "r");
-	if (tiff_ != nullptr) 
-	{
-		char* infobuf;
-		TIFFGetField(tiff_, TIFFTAG_IMAGEDESCRIPTION , &infobuf);
-		pugi::xml_document doc;
-		pugi::xml_parse_result result = doc.load_string(infobuf);;
-		xml_metadata_ptr_ = std::make_shared<std::map<std::string, std::string>>();
-		ifd_data_ptr_ = std::make_unique<std::vector<size_t>>(1);
-		if (result){
-			pugi::xml_node pixel = doc.child("OME").child("Image").child("Pixels");
-
-			for (const pugi::xml_attribute &attr: pixel.attributes()){
-				xml_metadata_ptr_->emplace(attr.name(), attr.value());
-			}
-		
-
-			auto it = xml_metadata_ptr_->find("SizeC");
-			if (it != xml_metadata_ptr_->end()) nc_ = stoi(it->second);
-
-			it = xml_metadata_ptr_->find("SizeZ");
-			if (it != xml_metadata_ptr_->end()) nz_ = stoi(it->second);
-
-			it = xml_metadata_ptr_->find("SizeT");
-			if (it != xml_metadata_ptr_->end()) nt_ = stoi(it->second);
-
-			//set up look up vector for ifp_data index
-			auto ifd_nums = nc_*nz_*nt_;
-			ifd_data_ptr_->at(0) = 99999999; //hack for now
-			for(auto i=1; i<ifd_nums;++i){ifd_data_ptr_->emplace_back(99999999);}
-
-			// get TiffData info
-        	for (pugi::xml_node tiff_data: pixel.children("TiffData"))
-			{
-				size_t c=0, t=0, z=0, ifd=0;
-				for (pugi::xml_attribute attr: tiff_data.attributes())
-				{
-					if (strcmp(attr.name(),"FirstC") == 0) {c = atoi(attr.value());}
-					else if (strcmp(attr.name(),"FirstZ") == 0) {z = atoi(attr.value());}
-					else if (strcmp(attr.name(),"FirstT") == 0) {t = atoi(attr.value());}
-					else if (strcmp(attr.name(),"IFD") == 0) {ifd = atoi(attr.value());}
-					else {continue;}
-				} 
-
-				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd;
-			}
-
-			// get channel info
-
-			// read structured annotaion
-			pugi::xml_node annotion_list = doc.child("OME").child("StructuredAnnotations");
-			for(const pugi::xml_node &annotation : annotion_list){
-				auto key = annotation.child("Value").child("OriginalMetadata").child("Key").child_value();
-				auto value = annotation.child("Value").child("OriginalMetadata").child("Value").child_value();
-				xml_metadata_ptr_->emplace(key,value);
-			}
-
-		}
-		TIFFClose(tiff_);
-	
-	} else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }	
-}
 
 template <class SampleType> 
-size_t OmeTiffLoader<SampleType>::AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const
+size_t OmeZarrLoader<SampleType>::AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const
 {
 	if (stride_val == 0) return current_pos; // guard against div by 0
 
@@ -369,25 +252,25 @@ size_t OmeTiffLoader<SampleType>::AdjustStride (size_t start_pos, size_t current
 	}
 }
 template <class SampleType>
-short OmeTiffLoader<SampleType>::GetBitsPerSamples() const
+short OmeZarrLoader<SampleType>::GetBitsPerSamples() const
 {
 	return tile_loader_->bitsPerSample();
 }
 
 template <class SampleType>
-short OmeTiffLoader<SampleType>::GetChannelCount() const
+short OmeZarrLoader<SampleType>::GetChannelCount() const
 {
 	return nc_;
 }
 
 template <class SampleType> 
-size_t OmeTiffLoader<SampleType>::GetTstepCount() const
+size_t OmeZarrLoader<SampleType>::GetTstepCount() const
 {
 	return nt_;
 }
 
 template <class SampleType>
-void OmeTiffLoader<SampleType>::SetViewRequests(size_t const tile_height, size_t const tile_width, size_t const row_stride, size_t const col_stride)
+void OmeZarrLoader<SampleType>::SetViewRequests(size_t const tile_height, size_t const tile_width, size_t const row_stride, size_t const col_stride)
 {
 
 	auto ih = tile_loader_->fullHeight(0);
@@ -428,7 +311,7 @@ void OmeTiffLoader<SampleType>::SetViewRequests(size_t const tile_height, size_t
 }
 
 template <class SampleType>
-std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetViewRequests(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
+std::shared_ptr<std::vector<SampleType>> OmeZarrLoader<SampleType>::GetViewRequests(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const index_col_pixel_min, size_t const index_col_pixel_max)
 {
 
@@ -469,7 +352,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetViewReque
 }
 
 template <class SampleType>
-std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTileData(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps)
+std::shared_ptr<std::vector<SampleType>> OmeZarrLoader<SampleType>::GetVirtualTileData(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps)
 {
 	// Convention 
 	// rows are X coordinate (increasing from top to bottom)
@@ -568,7 +451,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 
 
 template <class SampleType>
-std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTileDataStrided(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps)
+std::shared_ptr<std::vector<SampleType>> OmeZarrLoader<SampleType>::GetVirtualTileDataStrided(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps)
 {
 
 	// Convention 
@@ -643,7 +526,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetVirtualTi
 }
 
 template <class SampleType>
-void OmeTiffLoader<SampleType>::SetZCT()
+void OmeZarrLoader<SampleType>::SetZCT()
 {
 	// auto it = xml_metadata_ptr_->find("SizeC");
 	// if (it != xml_metadata_ptr_->end()) nc_ = stoi(it->second);
@@ -654,7 +537,7 @@ void OmeTiffLoader<SampleType>::SetZCT()
 	// it = xml_metadata_ptr_->find("SizeT");
 	// if (it != xml_metadata_ptr_->end()) nt_ = stoi(it->second);
 	
-	//ifd_offset_ = ifd_data_ptr_->at(0);
+	ifd_offset_ = ifd_data_ptr_->at(0);
 
 	auto it = xml_metadata_ptr_->find("DimensionOrder");
 	if (it != xml_metadata_ptr_->end())
@@ -671,60 +554,13 @@ void OmeTiffLoader<SampleType>::SetZCT()
 }
 
 template <class SampleType> 
-size_t OmeTiffLoader<SampleType>::CalcIFDIndex (size_t z, size_t c, size_t t) const
+size_t OmeZarrLoader<SampleType>::CalcIFDIndex (size_t z, size_t c, size_t t) const
 {
-	size_t ifd_dir = 0;
-	ifd_dir = ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z);
-	if (ifd_dir == 99999999){
-		switch (dim_order_)
-		{
-			case 1:
-				ifd_dir = nz_*nt_*c + nz_*t + z + ifd_offset_;
-				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
-				break;
-			case 2:
-				ifd_dir = nz_*nc_*t + nz_*c + z + ifd_offset_;
-				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
-				break;
-			case 4:
-				ifd_dir = nt_*nc_*z + nt_*c + t + ifd_offset_;
-				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
-				break;
-			case 8:
-				ifd_dir = nt_*nz_*c + nt_*z + t + ifd_offset_;
-				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
-				break;
-			case 16:
-				ifd_dir = nc_*nt_*z + nc_*t + c + ifd_offset_;
-				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
-				break;
-			case 32:
-				ifd_dir = nc_*nz_*t + nc_*z + c + ifd_offset_;
-				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
-				break;
-			
-			default:
-				ifd_dir = nz_*nt_*c + nz_*t + z + ifd_offset_;
-				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
-				break;
-		}
-
-	}
-	else 
-	{
-		if (dim_order_ == 1) {ifd_dir = nz_*nt_*c + nz_*t + z + ifd_offset_;}
-		else if (dim_order_ == 2) {ifd_dir = nz_*nc_*t + nz_*c + z + ifd_offset_;}
-		else if (dim_order_ == 4) {ifd_dir = nt_*nc_*z + nt_*c + t + ifd_offset_;}
-		else if (dim_order_ == 8) {ifd_dir = nt_*nz_*c + nt_*z + t + ifd_offset_;}
-		else if (dim_order_ == 16) {ifd_dir = nc_*nt_*z + nc_*t + c + ifd_offset_;}
-		else if (dim_order_ == 32) {ifd_dir = nc_*nz_*t + nc_*z + c + ifd_offset_;}
-		else {ifd_dir = nz_*nt_*c + nz_*t + z + ifd_offset_;}
-	}
-	return ifd_dir;
+	return t*nz_*nc_ + c*nz_ + z;
 }
 
 template <class SampleType>
-void OmeTiffLoader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& cols, const std::shared_ptr<std::vector<SampleType>> virtual_tile_data, const std::map<size_t, size_t>& ifd_offset_lookup)
+void OmeZarrLoader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& cols, const std::shared_ptr<std::vector<SampleType>> virtual_tile_data, const std::map<size_t, size_t>& ifd_offset_lookup)
 {
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);

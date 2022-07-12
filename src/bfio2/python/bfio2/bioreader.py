@@ -9,8 +9,17 @@ from .libbfio2 import Seq, get_tiff_type,\
                     OmeTiffLoaderInt32, \
                     OmeTiffLoaderInt64, \
                     OmeTiffLoaderFloat, \
-                    OmeTiffLoaderDouble
-            
+                    OmeTiffLoaderDouble,\
+                    OmeZarrLoaderUint8, \
+                    OmeZarrLoaderUint16, \
+                    OmeZarrLoaderUint32, \
+                    OmeZarrLoaderUint64, \
+                    OmeZarrLoaderInt8, \
+                    OmeZarrLoaderInt16, \
+                    OmeZarrLoaderInt32, \
+                    OmeZarrLoaderInt64, \
+                    OmeZarrLoaderFloat, \
+                    OmeZarrLoaderDouble            
 import numpy
 
 
@@ -22,7 +31,9 @@ class BioReader:
 
     def __init__(self, file_name, num_threads=1):
 
-        img_cls_dict_ = {
+        img_cls_dict_ = {}
+
+        img_cls_dict_['ome_tiff'] = {
             "uint8_t":OmeTiffLoaderUint8,
             "uint16_t":OmeTiffLoaderUint16,
             "uint32_t":OmeTiffLoaderUint32,
@@ -34,24 +45,48 @@ class BioReader:
             "float":OmeTiffLoaderFloat,
             "double":OmeTiffLoaderDouble,
         }
+
+        img_cls_dict_['ome_zarr'] = {
+            "uint8_t":OmeZarrLoaderUint8,
+            "uint16_t":OmeZarrLoaderUint16,
+            "uint32_t":OmeZarrLoaderUint32,
+            "uint64_t":OmeZarrLoaderUint64,
+            "int8_t":OmeZarrLoaderInt8,
+            "int16_t":OmeZarrLoaderInt16,
+            "int32_t":OmeZarrLoaderInt32,
+            "int64_t":OmeZarrLoaderInt64,
+            "float":OmeZarrLoaderFloat,
+            "double":OmeZarrLoaderDouble,
+        }
+
         self._file_name = file_name
+        self._file_type = ""
         self._DIMS = {}
-        if file_name.endswith('.ome.tif'):
-            tiff_type = bfio2.get_tiff_type(file_name)
-            self._image_reader = img_cls_dict_[tiff_type](file_name, num_threads)
-            
-            self._Y = self._image_reader.get_image_height()
-            self._X = self._image_reader.get_image_width()
-            self._Z = self._image_reader.get_image_depth()
-            self._C = self._image_reader.get_channel_count()
-            self._T = self._image_reader.get_tstep_count()
-            self._DIMS['X'] = self._X
-            self._DIMS['Y'] = self._Y
-            self._DIMS['Z'] = self._Z
-            self._DIMS['C'] = self._C
-            self._DIMS['T'] = self._T
+        if file_name.endswith('.ome.tif') or file_name.endswith('.ome.tiff'):
+            self._file_type = "ome_tiff"
+        elif file_name.endswith('.ome.zarr'):
+            self._file_type = "ome_zarr"
         else:
-            raise TypeError("Only OMETiff file format is supported")
+            raise TypeError("Only OMETiff and OMEZarr file formats are supported")
+
+        data_type = "uint16_t" # default
+        if self._file_type == "ome_zarr":
+            data_type = bfio2.get_zarr_type(file_name)
+        else: 
+            data_type = bfio2.get_tiff_type(file_name)
+        self._image_reader = img_cls_dict_[self._file_type][data_type](file_name, num_threads)
+        
+        self._Y = self._image_reader.get_image_height()
+        self._X = self._image_reader.get_image_width()
+        self._Z = self._image_reader.get_image_depth()
+        self._C = self._image_reader.get_channel_count()
+        self._T = self._image_reader.get_tstep_count()
+        self._DIMS['X'] = self._X
+        self._DIMS['Y'] = self._Y
+        self._DIMS['Z'] = self._Z
+        self._DIMS['C'] = self._C
+        self._DIMS['T'] = self._T
+
         
         self._physical_size_x = None
         self._physical_size_y = None

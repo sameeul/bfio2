@@ -4,6 +4,7 @@
 #include <map>
 #include <iostream>
 #include "ome_tiff_loader.h"
+#include "ome_zarr_loader.h"
 #include <sys/resource.h>
 #include <pugixml.hpp>
 #include <unistd.h>
@@ -235,22 +236,23 @@ void test8()
 void test12(){
     std::cout<<"Test 12 - Read the whole image"<<std::endl;
 
-    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/home/ec2-user/data/s_1_t_10_c_3_z_1_tiff_tiles.ome.tif",4);
+    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/mnt/hdd8/axle/data/nyxus_zarr_test/eastman-plate01-intensity/eastman-plate01-intensity/p01_x01_y01_wx0_wy0_c1.ome.tif",4);
     auto ih = imgLoader.GetImageHeight();
     auto iw = imgLoader.GetImageWidth();
     auto id = imgLoader.GetImageDepth();
     auto nc = imgLoader.GetChannelCount();
     auto nt = imgLoader.GetTstepCount();
+    
     auto start = std::chrono::high_resolution_clock::now(); 
     std::shared_ptr<std::vector<uint16_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
     auto end = std::chrono::high_resolution_clock::now(); 
     size_t count = 0, sum = 0;
-    // for (auto x: *tileData){
-    //     sum +=x;
-    //     // count++;
-    //     // std::cout<<x<<std::endl;
-    //     // if (count==10) break;
-    // }
+    for (auto x: *tileData){
+        sum +=x;
+        // count++;
+        // std::cout<<x<<std::endl;
+        // if (count==10) break;
+    }
     std::cout <<"Virtual tile total: "<< sum<<std::endl;
     std::chrono::duration<double> elapsed_seconds = end-start;
     std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
@@ -285,6 +287,28 @@ void test13(){
 
 }
 
+
+void test14(){
+    std::cout<<"Test 12 - Read the whole image - OmeZarr"<<std::endl;
+
+    OmeZarrLoader<uint16_t>  imgLoader = OmeZarrLoader<uint16_t> ("/mnt/hdd8/axle/data/nyxus_zarr_test/intenisty-omezarr/intenisty-omezarr/p01_x01_y01_wx0_wy0_c1.ome.zarr",4);
+    auto ih = imgLoader.GetImageHeight();
+    auto iw = imgLoader.GetImageWidth();
+    auto id = imgLoader.GetImageDepth();
+    auto nc = imgLoader.GetChannelCount();
+    auto nt = imgLoader.GetTstepCount();
+    auto start = std::chrono::high_resolution_clock::now(); 
+    std::shared_ptr<std::vector<uint16_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
+    auto end = std::chrono::high_resolution_clock::now(); 
+    size_t count = 0, sum = 0;
+    for (auto x: *tileData){
+        sum +=x;
+    }
+    std::cout <<"Virtual tile total: "<< sum<<std::endl;
+    std::chrono::duration<double> elapsed_seconds = end-start;
+    std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
+}
+
 int main(){
     // test1();
     // test2();
@@ -297,8 +321,9 @@ int main(){
     // test9();
     // test10();
     // test11();
-    for (auto i=0; i<5;i++) test12();
+    test12();
     //test13();
+    test14();
     return 0;
 
 }

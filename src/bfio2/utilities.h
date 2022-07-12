@@ -8,6 +8,15 @@
 #else
 #include <tiffio.h>
 #endif
+#include <algorithm>
+#include <regex>
+#include "nlohmann/json.hpp"
+// factory functions to create files, groups and datasets
+#include "z5/factory.hxx"
+// handles for z5 filesystem objects
+#include "z5/filesystem/handle.hxx"
+// attribute functionality
+#include "z5/attributes.hxx"
 
 std::string GetTiffType(const std::string &fname){
     TIFF * tiff = nullptr;
@@ -65,4 +74,30 @@ std::string GetTiffType(const std::string &fname){
     }
 
     return sample_type;
+}
+
+
+std::string GetZarrType(const std::string &fname){
+    std::unique_ptr<z5::filesystem::handle::File> zarr_ptr = std::make_unique<z5::filesystem::handle::File>(fname.c_str());
+    nlohmann::json attributes;
+    z5::readAttributes(*zarr_ptr, attributes);
+    
+    std::string metadata = attributes["metadata"].dump();
+    std::regex type_regex("Type=\\\\\"(\\w+)");
+    std::smatch matches;
+    if(std::regex_search(metadata, matches, type_regex)) {
+        if (matches[1].str() == "uint8") {return "uint8_t";}
+        else if (matches[1].str() == "uint16") {return "uint16_t";}
+        else if (matches[1].str() == "uint32") {return "uint32_t";}
+        else if (matches[1].str() == "uint64") {return "uint64_t";}
+        else if (matches[1].str() == "int8") {return "int8_t";}
+        else if (matches[1].str() == "int16") {return "int16_t";}
+        else if (matches[1].str() == "int32") {return "int32_t";}
+        else if (matches[1].str() == "int64") {return "int64_t";}
+        else if (matches[1].str() == "float") {return "float";}
+        else if (matches[1].str() == "double") {return "double";}
+        else {return "uint16_t";}
+    }
+    return "uint16_t";
+    
 }
