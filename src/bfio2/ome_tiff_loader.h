@@ -17,6 +17,7 @@ namespace py = pybind11;
 #include "ome_tiff_gs_strip_loader.h"
 #include "ome_tiff_gs_tile_loader.h"
 #include "sequence.h"
+#include "utilities.h"
 #include "thread_pool.hpp"
 #ifndef FOLLY_UMH_H
 #define FOLLY_UMH_H
@@ -32,8 +33,6 @@ FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(float)
 FOLLY_DECLARE_VECTOR_RESIZE_WITHOUT_INIT(double)
 #endif
 
-
-
 template <class SampleType>
 class OmeTiffLoader{
     private:
@@ -46,10 +45,6 @@ class OmeTiffLoader{
         short dim_order_;
 		std::string fname_;
         short fl_cut_off = 49;
-		
-        std::tuple<uint32_t, uint32_t>  GetImageDimensions() const;
-        std::tuple<uint32_t, uint32_t>  CalculateTileDimensions() const;
-        bool CheckTileStatus() const;
 
         void ParseMetadata();
         size_t AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const;
@@ -102,15 +97,13 @@ OmeTiffLoader<SampleType>::OmeTiffLoader(const std::string &fname_with_path, con
 {
 	ParseMetadata();
 	SetZCT();
-	if (CheckTileStatus())
+	if (CheckTileStatus(fname_))
 	{
 		tile_loader_ = std::make_shared<OmeTiffGrayScaleTileLoader<SampleType>>(n_threads_, fname_);
 	}
 	else 
 	{
-		// since the file is not tiled, we provide the tile dimensions
-		auto [tw, th]  = CalculateTileDimensions();		
-		tile_loader_ = std::make_shared<OmeTiffGrayScaleStripLoader<SampleType>>(n_threads_, fname_, tw, th, 1);
+		tile_loader_ = std::make_shared<OmeTiffGrayScaleStripLoader<SampleType>>(n_threads_, fname_);
 	}
 
     auto options = std::make_unique<fl::FastLoaderConfiguration<fl::DefaultView<SampleType>>>(tile_loader_);
@@ -192,49 +185,7 @@ std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetTileData(
     return tile_data;
 }
 
-template <class SampleType>
-std::tuple<uint32_t, uint32_t>  OmeTiffLoader<SampleType>::GetImageDimensions  () const
-{
-	TIFF *tiff_ = TIFFOpen(fname_.c_str(), "r");
-	if (tiff_ != nullptr) 
-	{
-		uint32_t w, l, ndirs;
-		TIFFGetField(tiff_, TIFFTAG_IMAGEWIDTH, &w);
-		TIFFGetField(tiff_, TIFFTAG_IMAGELENGTH, &l);
-		TIFFClose(tiff_);
-		return {w, l};	
-	} 
-	else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
-}
 
-template <class SampleType>
-std::tuple<uint32_t, uint32_t>  OmeTiffLoader<SampleType>::CalculateTileDimensions() const
-{
-	auto [w, h] = GetImageDimensions();
-	uint32_t default_width = 1024;
-	uint32_t default_height = 1024;
-	w = std::min ({ w, default_width });
-	h = std::min ({ h, default_height });
-	return {w, h};
-}
-
-template <class SampleType>
-bool OmeTiffLoader<SampleType>::CheckTileStatus() const
-{
-	TIFF *tiff_ = TIFFOpen(fname_.c_str(), "r");
-	if (tiff_ != nullptr) 
-	{
-		if (TIFFIsTiled(tiff_) == 0) 
-		{ 
-			TIFFClose(tiff_);
-			return false;
-			} else 
-			{
-			TIFFClose(tiff_);
-			return true;
-			}
-	} else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
-}
 
 template <class SampleType>
 std::shared_ptr<std::vector<SampleType>> OmeTiffLoader<SampleType>::GetTileDataByIndex(size_t const tile_index, size_t const channel, size_t const tstep)

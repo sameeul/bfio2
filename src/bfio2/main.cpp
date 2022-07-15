@@ -236,15 +236,15 @@ void test8()
 void test12(){
     std::cout<<"Test 12 - Read the whole image"<<std::endl;
 
-    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/mnt/hdd8/axle/data/nyxus_zarr_test/eastman-plate01-intensity/eastman-plate01-intensity/p01_x01_y01_wx0_wy0_c1.ome.tif",4);
+    OmeTiffLoader<uint32_t>  imgLoader = OmeTiffLoader<uint32_t> ("/mnt/hdd8/axle/data/nyxus_demo_data/tiff/seg_dir/p01_x01_y01_wx0_wy0_c1.ome.tif",4);
     auto ih = imgLoader.GetImageHeight();
     auto iw = imgLoader.GetImageWidth();
     auto id = imgLoader.GetImageDepth();
     auto nc = imgLoader.GetChannelCount();
     auto nt = imgLoader.GetTstepCount();
-    
+
     auto start = std::chrono::high_resolution_clock::now(); 
-    std::shared_ptr<std::vector<uint16_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
+    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
     auto end = std::chrono::high_resolution_clock::now(); 
     size_t count = 0, sum = 0;
     for (auto x: *tileData){
@@ -289,9 +289,9 @@ void test13(){
 
 
 void test14(){
-    std::cout<<"Test 12 - Read the whole image - OmeZarr"<<std::endl;
+    std::cout<<"Test 14 - Read the whole image - OmeZarr"<<std::endl;
 
-    OmeZarrLoader<uint16_t>  imgLoader = OmeZarrLoader<uint16_t> ("/mnt/hdd8/axle/data/nyxus_zarr_test/intenisty-omezarr/intenisty-omezarr/p01_x01_y01_wx0_wy0_c1.ome.zarr",4);
+    OmeZarrLoader<uint16_t>  imgLoader = OmeZarrLoader<uint16_t> ("/mnt/hdd8/axle/data/nyxus_demo_data/zarr/seg_dir/p01_x01_y01_wx0_wy0_c1.ome.zarr",4);
     auto ih = imgLoader.GetImageHeight();
     auto iw = imgLoader.GetImageWidth();
     auto id = imgLoader.GetImageDepth();

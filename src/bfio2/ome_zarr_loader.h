@@ -44,10 +44,6 @@ class OmeZarrLoader{
         short dim_order_;
 		std::string fname_;
 		short fl_cut_off = 49;
-        
-        std::tuple<uint32_t, uint32_t>  GetImageDimensions() const;
-        std::tuple<uint32_t, uint32_t>  CalculateTileDimensions() const;
-        bool CheckTileStatus() const;
 
         size_t AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const;
 
