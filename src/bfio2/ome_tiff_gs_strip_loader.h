@@ -6,6 +6,10 @@
 #include "bfio_tile_loader.h"
 #include <omp.h>
 
+constexpr size_t STRIP_TILE_HEIGHT = 1024;
+constexpr size_t STRIP_TILE_WIDTH = 1024;
+constexpr size_t STRIP_TILE_DEPTH = 1;
+
 /// @brief Tile Loader for 2D OMETiff Grayscale tiff strip files
 /// @tparam DataType AbstractView's internal type
 template<class DataType>
@@ -34,11 +38,8 @@ class OmeTiffGrayScaleStripLoader : public BfioTileLoader<DataType> {
   /// @param tile_depth Tile depth requested
   OmeTiffGrayScaleStripLoader(
       size_t number_threads,
-      std::string const &file_path,
-      size_t tile_width, size_t tile_height, size_t tile_depth)
-      : BfioTileLoader<DataType>("OmeTiffGrayScaleStripLoader", number_threads, file_path),
-        tile_width_(tile_width), tile_height_(tile_height), tile_depth_(tile_depth) {
-
+      std::string const &file_path)
+      : BfioTileLoader<DataType>("OmeTiffGrayScaleStripLoader", number_threads, file_path) {
     // Open the file
     tiff_ = TIFFOpen(file_path.c_str(), "r");
     if (tiff_ != nullptr) {
@@ -54,6 +55,10 @@ class OmeTiffGrayScaleStripLoader : public BfioTileLoader<DataType> {
       TIFFGetField(tiff_, TIFFTAG_SAMPLEFORMAT, &(this->sample_format_));
 
       full_depth_ = TIFFNumberOfDirectories(tiff_);
+
+      tile_width_ = std::min(full_width_, STRIP_TILE_WIDTH);
+      tile_height_ = std::min(full_height_, STRIP_TILE_HEIGHT);
+      tile_depth_ = std::min(full_depth_, STRIP_TILE_DEPTH);
 
       // Test if the file is grayscale
       if (samples_per_pixel_ != 1) {
@@ -168,10 +173,7 @@ class OmeTiffGrayScaleStripLoader : public BfioTileLoader<DataType> {
   /// @return Return a copy of the current OmeTiffGrayScaleStripLoader
   std::shared_ptr<fl::AbstractTileLoader<fl::DefaultView<DataType>>> copyTileLoader() override {
     return std::make_shared<OmeTiffGrayScaleStripLoader<DataType>>(this->numberThreads(),
-                                                                this->filePath(),
-                                                                this->tile_width_,
-                                                                this->tile_height_,
-                                                                this->tile_depth_);
+                                                                this->filePath());
   }
 
   /// @brief Tiff file height
