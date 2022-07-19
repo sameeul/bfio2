@@ -3,6 +3,7 @@
 #include <string>
 #include <tuple>
 #include <memory>
+#include <regex>
 #include <vector>
 #include <execution>
 #include <thread>
@@ -45,9 +46,9 @@ class OmeZarrLoader{
 		std::string fname_;
 		short fl_cut_off = 49;
 
+		void ParseMetadata();
         size_t AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const;
 
-        void SetZCT();
         void CopyToVirtualTile(const Seq& rows, const Seq& cols, const std::shared_ptr<std::vector<SampleType>> virtual_tile_data, const std::map<size_t, size_t>& ifd_offset_lookup);
 
     public:
@@ -93,8 +94,7 @@ OmeZarrLoader<SampleType>::OmeZarrLoader(const std::string &fname_with_path, con
 	fname_(fname_with_path),
 	tile_coordinate_list_(0)
 {
-	//ParseMetadata();
-	//SetZCT();
+	ParseMetadata();
 	tile_loader_ = std::make_shared<OmeZarrTileLoader<SampleType>>(n_threads_, fname_);
 
 	nc_ = tile_loader_->numberChannels();
@@ -232,6 +232,40 @@ std::string OmeZarrLoader<SampleType>::GetMetaDataValue(const std::string &metad
 	return value;
 }
 
+template <class SampleType>
+void OmeZarrLoader<SampleType>::ParseMetadata() 
+{	
+	std::unique_ptr zarr_ptr = std::make_unique<z5::filesystem::handle::File>(fname_.c_str());
+	nlohmann::json attributes;
+	z5::readAttributes(*zarr_ptr, attributes);
+	std::string metadata = attributes["metadata"].dump();
+
+	std::regex ome("ome:");
+	metadata = std::regex_replace(metadata, ome, "");
+
+	std::regex quote("\\\\\"");
+	metadata = std::regex_replace(metadata, quote, "\"");
+
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_string(metadata.c_str());;
+	xml_metadata_ptr_ = std::make_shared<std::map<std::string, std::string>>();
+	if (result){
+		pugi::xml_node pixel = doc.child("OME").child("Image").child("Pixels");
+
+		for (const pugi::xml_attribute &attr: pixel.attributes()){
+			xml_metadata_ptr_->emplace(attr.name(), attr.value());
+		}
+	// get channel info -ToDo
+
+	// read structured annotaion
+		pugi::xml_node annotion_list = doc.child("OME").child("StructuredAnnotations");
+		for(const pugi::xml_node &annotation : annotion_list){
+			auto key = annotation.child("Value").child("OriginalMetadata").child("Key").child_value();
+			auto value = annotation.child("Value").child("OriginalMetadata").child("Value").child_value();
+			xml_metadata_ptr_->emplace(key,value);
+		}
+	}
+}
 
 template <class SampleType> 
 size_t OmeZarrLoader<SampleType>::AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const
@@ -519,34 +553,6 @@ std::shared_ptr<std::vector<SampleType>> OmeZarrLoader<SampleType>::GetVirtualTi
 	}
 
 	return virtual_tile_data;
-}
-
-template <class SampleType>
-void OmeZarrLoader<SampleType>::SetZCT()
-{
-	// auto it = xml_metadata_ptr_->find("SizeC");
-	// if (it != xml_metadata_ptr_->end()) nc_ = stoi(it->second);
-	
-	// it = xml_metadata_ptr_->find("SizeZ");
-	// if (it != xml_metadata_ptr_->end()) nz_ = stoi(it->second);
-
-	// it = xml_metadata_ptr_->find("SizeT");
-	// if (it != xml_metadata_ptr_->end()) nt_ = stoi(it->second);
-	
-	ifd_offset_ = ifd_data_ptr_->at(0);
-
-	auto it = xml_metadata_ptr_->find("DimensionOrder");
-	if (it != xml_metadata_ptr_->end())
-	{
-		auto dim_order_str = it->second;
-		if (dim_order_str == "XYZTC") { dim_order_ = 1;}
-		else if (dim_order_str == "XYZCT") { dim_order_ = 2;}
-		else if (dim_order_str == "XYTCZ") { dim_order_ = 4;}
-		else if (dim_order_str == "XYTZC") { dim_order_ = 8;}
-		else if (dim_order_str == "XYCTZ") { dim_order_ = 16;}
-		else if (dim_order_str == "XYCZT") { dim_order_ = 32;}
-		else { dim_order_ = 1;}
-	}
 }
 
 template <class SampleType> 

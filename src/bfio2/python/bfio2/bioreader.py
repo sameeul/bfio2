@@ -1,25 +1,16 @@
 from . import libbfio2 as bfio2
 from .libbfio2 import Seq, get_tiff_type,\
-                    OmeTiffLoaderUint8, \
-                    OmeTiffLoaderUint16, \
-                    OmeTiffLoaderUint32, \
-                    OmeTiffLoaderUint64, \
-                    OmeTiffLoaderInt8, \
-                    OmeTiffLoaderInt16, \
-                    OmeTiffLoaderInt32, \
-                    OmeTiffLoaderInt64, \
-                    OmeTiffLoaderFloat, \
-                    OmeTiffLoaderDouble,\
-                    OmeZarrLoaderUint8, \
-                    OmeZarrLoaderUint16, \
-                    OmeZarrLoaderUint32, \
-                    OmeZarrLoaderUint64, \
-                    OmeZarrLoaderInt8, \
-                    OmeZarrLoaderInt16, \
-                    OmeZarrLoaderInt32, \
-                    OmeZarrLoaderInt64, \
-                    OmeZarrLoaderFloat, \
-                    OmeZarrLoaderDouble            
+                    BioReaderUint8, \
+                    BioReaderUint16, \
+                    BioReaderUint32, \
+                    BioReaderUint64, \
+                    BioReaderInt8, \
+                    BioReaderInt16, \
+                    BioReaderInt32, \
+                    BioReaderInt64, \
+                    BioReaderFloat, \
+                    BioReaderDouble
+
 import numpy
 
 
@@ -31,32 +22,17 @@ class BioReader:
 
     def __init__(self, file_name, num_threads=1):
 
-        img_cls_dict_ = {}
-
-        img_cls_dict_['ome_tiff'] = {
-            "uint8_t":OmeTiffLoaderUint8,
-            "uint16_t":OmeTiffLoaderUint16,
-            "uint32_t":OmeTiffLoaderUint32,
-            "uint64_t":OmeTiffLoaderUint64,
-            "int8_t":OmeTiffLoaderInt8,
-            "int16_t":OmeTiffLoaderInt16,
-            "int32_t":OmeTiffLoaderInt32,
-            "int64_t":OmeTiffLoaderInt64,
-            "float":OmeTiffLoaderFloat,
-            "double":OmeTiffLoaderDouble,
-        }
-
-        img_cls_dict_['ome_zarr'] = {
-            "uint8_t":OmeZarrLoaderUint8,
-            "uint16_t":OmeZarrLoaderUint16,
-            "uint32_t":OmeZarrLoaderUint32,
-            "uint64_t":OmeZarrLoaderUint64,
-            "int8_t":OmeZarrLoaderInt8,
-            "int16_t":OmeZarrLoaderInt16,
-            "int32_t":OmeZarrLoaderInt32,
-            "int64_t":OmeZarrLoaderInt64,
-            "float":OmeZarrLoaderFloat,
-            "double":OmeZarrLoaderDouble,
+        img_cls_dict_ = {
+            "uint8_t":BioReaderUint8,
+            "uint16_t":BioReaderUint16,
+            "uint32_t":BioReaderUint32,
+            "uint64_t":BioReaderUint64,
+            "int8_t":BioReaderInt8,
+            "int16_t":BioReaderInt16,
+            "int32_t":BioReaderInt32,
+            "int64_t":BioReaderInt64,
+            "float":BioReaderFloat,
+            "double":BioReaderDouble,
         }
 
         self._file_name = file_name
@@ -74,7 +50,7 @@ class BioReader:
             data_type = bfio2.get_zarr_type(file_name)
         else: 
             data_type = bfio2.get_tiff_type(file_name)
-        self._image_reader = img_cls_dict_[self._file_type][data_type](file_name, num_threads)
+        self._image_reader = img_cls_dict_[data_type](file_name, num_threads)
         
         self._Y = self._image_reader.get_image_height()
         self._X = self._image_reader.get_image_width()

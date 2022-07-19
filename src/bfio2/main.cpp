@@ -3,8 +3,9 @@
 #include <vector>
 #include <map>
 #include <iostream>
-#include "ome_tiff_loader.h"
-#include "ome_zarr_loader.h"
+//#include "ome_tiff_loader.h"
+//#include "ome_zarr_loader.h"
+#include "bioreader.h"
 #include <sys/resource.h>
 #include <pugixml.hpp>
 #include <unistd.h>
@@ -30,7 +31,7 @@
 // void test1()
 // {
 //     std::cout<<"Test 1 - Virtual Tile From 4 Tiles" <<std::endl;
-//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+//     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     auto numRowTiles = imgLoader.GetRowTileCount();
 //     auto numColTiles = imgLoader.GetColumnTileCount();  
 //     auto start = std::chrono::steady_clock::now(); 
@@ -65,7 +66,7 @@
 // void test2()
 // {
 //     std::cout<<"Test 2 - Single Tile Subsection" <<std::endl;
-//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+//     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     auto numRowTiles = imgLoader.GetRowTileCount();
 //     auto numColTiles = imgLoader.GetColumnTileCount();  
 //     auto start = std::chrono::steady_clock::now(); 
@@ -93,7 +94,7 @@
 // void test3()
 // {
 //     std::cout<<"Test 3 - Single Tile (Full)" <<std::endl;
-//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+//     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     auto numRowTiles = imgLoader.GetRowTileCount();
 //     auto numColTiles = imgLoader.GetColumnTileCount();  
 //     auto start = std::chrono::steady_clock::now(); 
@@ -122,7 +123,7 @@
 // void test4()
 // {
 //     std::cout<<"Test 4 - Single Tile Memory usage" <<std::endl;
-//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+//     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     struct rusage rss1, rss2;
 //     auto start = std::chrono::steady_clock::now(); 
 //     auto tmp = getrusage(RUSAGE_SELF, &rss1);
@@ -139,7 +140,7 @@
 // // void test5()
 // // {
 // //     std::cout<<"Test 5 - Virtual Tile Stride" <<std::endl;
-// //     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+// //     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 
 // //     std::shared_ptr<std::vector<tile_data_type>> tileData1 = imgLoader.GetBoundingBoxVirtualTileData(0,1079,0,1023,0,0);
 // //     std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetBoundingBoxVirtualTileDataStrideVersion(0,1079,1,0,1023,2,0,0,1);
@@ -157,7 +158,7 @@
 // void test6()
 // {
 //     std::cout<<"Test 6 - Loop through tiles using index" <<std::endl;
-//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+//     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     for (int i=0; i<4; ++i){
 //         std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileDataByIndex(i);
 //         size_t sum = std::accumulate(tileData->begin(), tileData->end(), size_t(0));        
@@ -168,7 +169,7 @@
 // void test7()
 // {
 //     std::cout<<"Test 7 - Sanity check" <<std::endl;
-//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+//     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileDataByIndex(0);
 // //    std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(0,0,0);
 
@@ -181,7 +182,7 @@
 void test8()
 {
     std::cout<<"Test 8 - Iterator check" <<std::endl;
-    OmeTiffLoader<uint16_t>  imgLoader = OmeTiffLoader<uint16_t> ("/home/ec2-user/data/3d-cell-viewer_ome_tiff_tiles.ome.tif",1);
+    BioReader<uint16_t>  imgLoader = BioReader<uint16_t> ("/home/ec2-user/data/3d-cell-viewer_ome_tiff_tiles.ome.tif",1);
     
     size_t tw = 1024;
     size_t th = 1024;
@@ -207,7 +208,7 @@ void test8()
 // void test9()
 // {
 //     std::cout<<"Test 6 - Loop through tiles using row and col" <<std::endl;
-//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
+//     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     for (int i=0; i<2; ++i){
 //         for (int j=0; j<2; ++j){
 //             std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(i,j,0);
@@ -221,14 +222,14 @@ void test8()
 // void test10()
 // {
 //     std::cout<<"Test 10 - Validate CalcIFD"<<std::endl;
-//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/data/bfio_test_images/multi-channel-z-series.ome.tif");
+//     BioReader imgLoader = BioReader("/mnt/hdd8/axle/data/bfio_test_images/multi-channel-z-series.ome.tif");
 //     std::cout<<imgLoader.CalcIFDIndex(2,0,0)<<std::endl;
 //     std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetVirtualTileData(Seq(0,166), Seq(0,438), Seq(1,2), Seq(0,0), Seq(0,0));
 // }
 
 // void test11(){
 //     std::cout<<"Test 10 - Validate CalcIFD"<<std::endl;
-//     OmeTiffLoader imgLoader = OmeTiffLoader("/mnt/hdd8/axle/data/polus-data/images/AICSImageIO/standard/tiff/actk_ome_tiff_tiles.ome.tif");
+//     BioReader imgLoader = BioReader("/mnt/hdd8/axle/data/polus-data/images/AICSImageIO/standard/tiff/actk_ome_tiff_tiles.ome.tif");
 //     auto data = imgLoader.GetTileData(0,0,1,0,0);
 
 // }
@@ -236,7 +237,7 @@ void test8()
 void test12(){
     std::cout<<"Test 12 - Read the whole image"<<std::endl;
 
-    OmeTiffLoader<uint32_t>  imgLoader = OmeTiffLoader<uint32_t> ("/mnt/hdd8/axle/data/nyxus_demo_data/tiff/seg_dir/p01_x01_y01_wx0_wy0_c1.ome.tif",4);
+    BioReader<float>  imgLoader = BioReader<float> ("/mnt/hdd8/axle/data/nyxus_demo_data/tiff/seg_dir/p01_x01_y01_wx0_wy0_c1.ome.tif",4);
     auto ih = imgLoader.GetImageHeight();
     auto iw = imgLoader.GetImageWidth();
     auto id = imgLoader.GetImageDepth();
@@ -244,7 +245,7 @@ void test12(){
     auto nt = imgLoader.GetTstepCount();
 
     auto start = std::chrono::high_resolution_clock::now(); 
-    std::shared_ptr<std::vector<uint32_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
+    std::shared_ptr<std::vector<float>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
     auto end = std::chrono::high_resolution_clock::now(); 
     size_t count = 0, sum = 0;
     for (auto x: *tileData){
@@ -291,14 +292,14 @@ void test13(){
 void test14(){
     std::cout<<"Test 14 - Read the whole image - OmeZarr"<<std::endl;
 
-    OmeZarrLoader<uint16_t>  imgLoader = OmeZarrLoader<uint16_t> ("/mnt/hdd8/axle/data/nyxus_demo_data/zarr/seg_dir/p01_x01_y01_wx0_wy0_c1.ome.zarr",4);
+    BioReader<float>  imgLoader = BioReader<float> ("/mnt/hdd8/axle/data/nyxus_demo_data/zarr/seg_dir/p01_x01_y01_wx0_wy0_c1.ome.zarr",4);
     auto ih = imgLoader.GetImageHeight();
     auto iw = imgLoader.GetImageWidth();
     auto id = imgLoader.GetImageDepth();
     auto nc = imgLoader.GetChannelCount();
     auto nt = imgLoader.GetTstepCount();
     auto start = std::chrono::high_resolution_clock::now(); 
-    std::shared_ptr<std::vector<uint16_t>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
+    std::shared_ptr<std::vector<float>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
     auto end = std::chrono::high_resolution_clock::now(); 
     size_t count = 0, sum = 0;
     for (auto x: *tileData){
