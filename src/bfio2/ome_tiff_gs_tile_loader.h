@@ -50,7 +50,7 @@ template<class DataType>
       TIFFGetField(tiff_, TIFFTAG_SAMPLESPERPIXEL, &(this->samples_per_pixel_));
       TIFFGetField(tiff_, TIFFTAG_BITSPERSAMPLE, &(this->bits_per_sample_));
       TIFFGetField(tiff_, TIFFTAG_SAMPLEFORMAT, &(this->sample_format_));
-      full_depth_ = TIFFNumberOfDirectories(tiff_); 
+      full_depth_ = TIFFNumberOfDirectories(tiff_);
       tile_depth_ = 1;
       // Test if the file is greyscale
       if (samples_per_pixel_ != 1) {
@@ -78,7 +78,7 @@ template<class DataType>
   /// @param level Tile's level
   void loadTileFromFile(std::shared_ptr<std::vector<DataType>> tile,
                         size_t index_row_global_tile, size_t index_col_global_tile, size_t index_layer_global_tile,
-                        [[maybe_unused]] size_t level) override {   
+                        [[maybe_unused]] size_t level) override {
     TIFFSetDirectory(tiff_, index_layer_global_tile);
     TIFFReadTile(tiff_, (void*)(tile->data()), index_col_global_tile * tile_width_, index_row_global_tile * tile_height_, 0, 0);
   }

@@ -1,7 +1,7 @@
+# -*- coding: utf-8 -*-
 import os
 import re
 import sys
-import sysconfig
 import versioneer
 import platform
 import subprocess
@@ -59,7 +59,7 @@ class CMakeBuild(build_ext):
             cmake_args += [
                 "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}".format(cfg.upper(), extdir)
             ]
-            if sys.maxsize > 2 ** 32:
+            if sys.maxsize > 2**32:
                 cmake_args += ["-A", "x64"]
             build_args += ["--", "/m"]
         else:
@@ -107,6 +107,6 @@ setup(
     ext_modules=[CMakeExtension("bfio2/libbfio2")],
     test_suite="tests",
     zip_safe=False,
-    python_requires=">=3.6",
+    python_requires=">=3.8",  # Minimum supported version
     install_requires=["numpy>=1.20.1"],
 )

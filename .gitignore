@@ -562,7 +562,7 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# scratch 
+# scratch
 scratch/
 
 build/

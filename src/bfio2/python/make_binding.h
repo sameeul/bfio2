@@ -42,5 +42,4 @@
         }, py::return_value_policy::reference) \
         .def("__iter__", [](ReaderType<SampleType>& tl){ \
             return py::make_iterator(tl.tile_coordinate_list_.begin(), tl.tile_coordinate_list_.end()); \
-            }, py::keep_alive<0, 1>()); 
-   
+            }, py::keep_alive<0, 1>());

@@ -33,8 +33,8 @@
 //     std::cout<<"Test 1 - Virtual Tile From 4 Tiles" <<std::endl;
 //     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     auto numRowTiles = imgLoader.GetRowTileCount();
-//     auto numColTiles = imgLoader.GetColumnTileCount();  
-//     auto start = std::chrono::steady_clock::now(); 
+//     auto numColTiles = imgLoader.GetColumnTileCount();
+//     auto start = std::chrono::steady_clock::now();
 
 //     std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(0,0,0,0);
 //     size_t sum = 0;
@@ -45,7 +45,7 @@
 //     sum += partial_sum(tileData, 0, 1050-1024,700,1023, 1024);
 //     tileData = imgLoader.GetTileData(1,1,0,0);
 //     sum += partial_sum(tileData, 0, 1050-1024,0,1070-1024,56);
-    
+
 //     std::cout << "Manual Total :" << sum << std::endl;
 
 //     auto vTileData = imgLoader.GetVirtualTileData(Seq(500,1051), Seq(700, 1071), Seq(0,0), Seq(0,0) ,Seq(0,0));
@@ -56,7 +56,7 @@
 //         count++;
 //     }
 //     std::cout <<"Virtual tile total: "<< sum<<std::endl;
-//     auto end = std::chrono::steady_clock::now(); 
+//     auto end = std::chrono::steady_clock::now();
 //     std::chrono::duration<double> elapsed_seconds = end-start;
 //     std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
 
@@ -68,13 +68,13 @@
 //     std::cout<<"Test 2 - Single Tile Subsection" <<std::endl;
 //     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     auto numRowTiles = imgLoader.GetRowTileCount();
-//     auto numColTiles = imgLoader.GetColumnTileCount();  
-//     auto start = std::chrono::steady_clock::now(); 
+//     auto numColTiles = imgLoader.GetColumnTileCount();
+//     auto start = std::chrono::steady_clock::now();
 
 //     std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(0,0,0);
 //     size_t sum = 0;
 //     sum += partial_sum(tileData, 0, 100,0,100, 1024);
-   
+
 //     std::cout << "Manual Total :" << sum << std::endl;
 
 //     auto vTileData = imgLoader.GetVirtualTileData(Seq(0,101), Seq(0, 101), Seq(0,0), Seq(0,0) ,Seq(0,0));
@@ -85,7 +85,7 @@
 //         count++;
 //     }
 //     std::cout <<"Virtual tile total: "<< sum<<std::endl;
-//     auto end = std::chrono::steady_clock::now(); 
+//     auto end = std::chrono::steady_clock::now();
 //     std::chrono::duration<double> elapsed_seconds = end-start;
 //     std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
 
@@ -96,13 +96,13 @@
 //     std::cout<<"Test 3 - Single Tile (Full)" <<std::endl;
 //     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     auto numRowTiles = imgLoader.GetRowTileCount();
-//     auto numColTiles = imgLoader.GetColumnTileCount();  
-//     auto start = std::chrono::steady_clock::now(); 
+//     auto numColTiles = imgLoader.GetColumnTileCount();
+//     auto start = std::chrono::steady_clock::now();
 
 //     std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(0,0,0);
 //     size_t sum = 0;
 //     sum += partial_sum(tileData, 0, 1023,0,1023, 1024);
-   
+
 //     std::cout << "Manual Total :" << sum << std::endl;
 
 //     auto vTileData = imgLoader.GetVirtualTileData(Seq(0,1024), Seq(0, 1024), Seq(0,0), Seq(0,0) ,Seq(0,0));
@@ -113,7 +113,7 @@
 //         count++;
 //     }
 //     std::cout <<"Virtual tile total: "<< sum<<std::endl;
-//     auto end = std::chrono::steady_clock::now(); 
+//     auto end = std::chrono::steady_clock::now();
 //     std::chrono::duration<double> elapsed_seconds = end-start;
 //     std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
 
@@ -125,13 +125,13 @@
 //     std::cout<<"Test 4 - Single Tile Memory usage" <<std::endl;
 //     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     struct rusage rss1, rss2;
-//     auto start = std::chrono::steady_clock::now(); 
+//     auto start = std::chrono::steady_clock::now();
 //     auto tmp = getrusage(RUSAGE_SELF, &rss1);
 //     std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(0,0,0);
 //     tmp = getrusage(RUSAGE_SELF, &rss2);
 
 //     std::cout<<"Memory usage for tile " << rss2.ru_maxrss - rss1.ru_maxrss << std::endl;
-//     auto end = std::chrono::steady_clock::now(); 
+//     auto end = std::chrono::steady_clock::now();
 //     std::chrono::duration<double> elapsed_seconds = end-start;
 //     std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
 
@@ -161,7 +161,7 @@
 //     BioReader imgLoader = BioReader("/mnt/hdd8/axle/dev/imgloader/build/r01_x10_y05_z08.ome.tif");
 //     for (int i=0; i<4; ++i){
 //         std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileDataByIndex(i);
-//         size_t sum = std::accumulate(tileData->begin(), tileData->end(), size_t(0));        
+//         size_t sum = std::accumulate(tileData->begin(), tileData->end(), size_t(0));
 //         std::cout << "Tile id " << i << ", sum = "<< sum <<std::endl;
 //     }
 // }
@@ -183,7 +183,7 @@ void test8()
 {
     std::cout<<"Test 8 - Iterator check" <<std::endl;
     BioReader<uint16_t>  imgLoader = BioReader<uint16_t> ("/home/ec2-user/data/3d-cell-viewer_ome_tiff_tiles.ome.tif",1);
-    
+
     size_t tw = 1024;
     size_t th = 1024;
     size_t rs = 1024;
@@ -212,7 +212,7 @@ void test8()
 //     for (int i=0; i<2; ++i){
 //         for (int j=0; j<2; ++j){
 //             std::shared_ptr<std::vector<tile_data_type>> tileData = imgLoader.GetTileData(i,j,0);
-//             size_t sum = std::accumulate(tileData->begin(), tileData->end(), size_t(0));        
+//             size_t sum = std::accumulate(tileData->begin(), tileData->end(), size_t(0));
 //             std::cout << "Tile id " << i << ", sum = "<< sum <<std::endl;
 //         }
 
@@ -244,9 +244,9 @@ void test12(){
     auto nc = imgLoader.GetChannelCount();
     auto nt = imgLoader.GetTstepCount();
 
-    auto start = std::chrono::high_resolution_clock::now(); 
+    auto start = std::chrono::high_resolution_clock::now();
     std::shared_ptr<std::vector<float>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
-    auto end = std::chrono::high_resolution_clock::now(); 
+    auto end = std::chrono::high_resolution_clock::now();
     size_t count = 0, sum = 0;
     for (auto x: *tileData){
         sum +=x;
@@ -266,23 +266,23 @@ void test13(){
 
     std::vector<uint16_t> src_data(1024*1024);
     for(auto i=0;i<1024*1024;i++){src_data[i] = rand()%100;}
-    auto start = std::chrono::high_resolution_clock::now(); 
+    auto start = std::chrono::high_resolution_clock::now();
     for (auto i=0;i<666;++i){
         auto offset = i*1024*1024;
         memcpy((void *)(&(*(virtual_tile_data_1->data()+offset))), (void *)(&(src_data[0])), sizeof(uint16_t)*1024*1024);
     }
-    auto end = std::chrono::high_resolution_clock::now(); 
+    auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_seconds = end-start;
     std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
 
     std::shared_ptr<std::vector<uint16_t>> virtual_tile_data_2 = std::make_shared<std::vector<uint16_t>>(0) ;
 	folly::resizeWithoutInitialization(*virtual_tile_data_2, 1024 * 1024 );
-    start = std::chrono::high_resolution_clock::now(); 
+    start = std::chrono::high_resolution_clock::now();
         for (auto i=0;i<666;++i){
         auto offset = 0;
         memcpy((void *)(&(*(virtual_tile_data_2->data()+offset))), (void *)(&(src_data[0])), sizeof(uint16_t)*1024*1024);
     }
-    end = std::chrono::high_resolution_clock::now(); 
+    end = std::chrono::high_resolution_clock::now();
     elapsed_seconds = end-start;
     std::cout<<"elapsed_time " << elapsed_seconds.count() << std::endl;
 
@@ -298,9 +298,9 @@ void test14(){
     auto id = imgLoader.GetImageDepth();
     auto nc = imgLoader.GetChannelCount();
     auto nt = imgLoader.GetTstepCount();
-    auto start = std::chrono::high_resolution_clock::now(); 
+    auto start = std::chrono::high_resolution_clock::now();
     std::shared_ptr<std::vector<float>> tileData = imgLoader.GetVirtualTileData(Seq(0,ih-1), Seq(0,iw-1), Seq(0,id-1), Seq(0,nc-1), Seq(0,nt-1));
-    auto end = std::chrono::high_resolution_clock::now(); 
+    auto end = std::chrono::high_resolution_clock::now();
     size_t count = 0, sum = 0;
     for (auto x: *tileData){
         sum +=x;

@@ -36,7 +36,7 @@ option(WITH_OMEZARR "Build with OMEZarr Support" ON)
 if(WITH_OMEZARR)
 	set(ENV{Z5_INSTALL_DIR} "local_install")
 	set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/$ENV{Z5_INSTALL_DIR})
-	
+
 	find_package(Boost)
 	if(Boost_FOUND)
 		set(ENV{Boost_INSTALLED} "TRUE")
@@ -44,7 +44,7 @@ if(WITH_OMEZARR)
 		set(ENV{Boost_INSTALLED} "FALSE")
 		message(STATUS "Boost will be downloaded and installed")
 	endif()
-	
+
 	find_package(BLOSC)
 	if(BLOSC_FOUND)
 		set(ENV{BLOSC_INSTALLED} "TRUE")
@@ -109,16 +109,16 @@ include_directories(lib/folly)
 #ThreadPool
 include_directories(lib/ThreadPool)
 
-set(SOURCE 
-	src/bfio2/ome_tiff_loader.h 
-	src/bfio2/ome_zarr_loader.h 
+set(SOURCE
+	src/bfio2/ome_tiff_loader.h
+	src/bfio2/ome_zarr_loader.h
 	lib/pugixml/pugixml.cpp
-	src/bfio2/utilities.cpp 
+	src/bfio2/utilities.cpp
 )
 
 # Python bindings.
 if(BUILD_LIB)
-	pybind11_add_module(libbfio2 
+	pybind11_add_module(libbfio2
 		${SOURCE}
 		src/bfio2/python/bfio2_interface.cpp
 	)
@@ -131,7 +131,7 @@ if(BUILD_CLI)
 		target_compile_definitions(bfio2 PRIVATE -DWITH_BLOSC)
 	endif()
 	target_link_libraries(bfio2 PRIVATE stdc++fs)
-	target_link_libraries(bfio2 PRIVATE ${bfio2_LIBRARIES})	
+	target_link_libraries(bfio2 PRIVATE ${bfio2_LIBRARIES})
 	if (OPENMP_FOUND)
 		target_link_libraries(bfio2 PRIVATE OpenMP::OpenMP_CXX)
 	endif()

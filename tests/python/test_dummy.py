@@ -1,4 +1,4 @@
-from numpy import True_
+# -*- coding: utf-8 -*-
 
 
 def test_dummy():

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include <fast_loader/fast_loader.h> 
+#include <fast_loader/fast_loader.h>
 #include "nlohmann/json.hpp"
 #include "xtensor/xarray.hpp"
 
@@ -18,7 +18,7 @@
 /// @brief Tile Loader for OMEZarr
 /// @tparam DataType AbstractView's internal type
 template<class DataType>
-class OmeZarrTileLoader : public BfioTileLoader<DataType> 
+class OmeZarrTileLoader : public BfioTileLoader<DataType>
 {
 public:
 
@@ -34,7 +34,7 @@ public:
         zarr_ptr_ = std::make_unique<z5::filesystem::handle::File>(filePath.c_str());
         nlohmann::json attributes;
         z5::readAttributes(*zarr_ptr_, attributes);
-        
+
         // assume only on dataset is present
         std::string ds_name = attributes["multiscales"][0]["datasets"][0]["path"].get<std::string>();
         const auto ds_handle = z5::filesystem::handle::Dataset(*zarr_ptr_, ds_name);
@@ -42,7 +42,7 @@ public:
         fs::path metadata_path;
         auto success = z5::filesystem::metadata_detail::getMetadataPath(ds_handle, metadata_path);
         z5::filesystem::metadata_detail::readMetadata(metadata_path,ds_attributes );
-        
+
         num_tsteps_ = ds_attributes["shape"][0].get<size_t>();
         num_ch_ = ds_attributes["shape"][1].get<size_t>();
         full_depth_ = ds_attributes["shape"][2].get<size_t>();
@@ -67,7 +67,7 @@ public:
     }
 
     /// @brief OmeZarrTileLoader destructor
-    ~OmeZarrTileLoader() override 
+    ~OmeZarrTileLoader() override
     {
         zarr_ptr_ = nullptr;
     }
@@ -82,13 +82,13 @@ public:
         size_t indexRowGlobalTile,
         size_t indexColGlobalTile,
         size_t indexLayerGlobalTile,
-        [[maybe_unused]] size_t level) override 
+        [[maybe_unused]] size_t level) override
     {
         size_t pixel_row_index = indexRowGlobalTile*tile_height_;
         size_t pixel_col_index = indexColGlobalTile*tile_width_;
         size_t pixel_layer_index = indexLayerGlobalTile*tile_depth_;
 
-        
+
         switch (data_format_)
         {
         case 1:
@@ -126,10 +126,10 @@ public:
             break;
         }
     }
-    
+
     template<typename FileType>
     void loadTile(std::shared_ptr<std::vector<DataType>> &dest, size_t pixel_row_index, size_t pixel_col_index, size_t pixel_layer_index){
-        
+
         size_t num_tile_depth = static_cast<size_t>(ceil(1.0*full_depth_ / tile_depth_));
         size_t t_index = pixel_layer_index / (num_tile_depth*num_ch_);
         size_t tmp_cz = pixel_layer_index % (num_tile_depth*num_ch_);
@@ -139,7 +139,7 @@ public:
 
         std::vector<std::string> datasets;
         zarr_ptr_->keys(datasets);
-        auto ds = z5::openDataset(*zarr_ptr_, datasets[0]);     
+        auto ds = z5::openDataset(*zarr_ptr_, datasets[0]);
         size_t data_height = tile_height_, data_width = tile_width_;
         if (pixel_row_index + data_height > full_height_) {data_height = full_height_ - pixel_row_index;}
         if (pixel_col_index + data_width > full_width_) {data_width = full_width_ - pixel_col_index;}
@@ -147,10 +147,10 @@ public:
         typename xt::xarray<FileType>::shape_type shape = {1,1,1,data_height,data_width };
         z5::types::ShapeType offset = { t_index,c_index,z_index, pixel_row_index, pixel_col_index };
         xt::xarray<FileType> array(shape);
-        z5::multiarray::readSubarray<FileType>(ds, array, offset.begin());     
+        z5::multiarray::readSubarray<FileType>(ds, array, offset.begin());
         std::vector<DataType> tmp = std::vector<DataType> (array.begin(), array.end());
 
-        
+
         for (size_t k=0;k<data_height;++k)
         {
             std::copy(tmp.begin()+ k*data_width, tmp.begin()+(k+1)*data_width, dest->begin()+k*tile_width_);
@@ -160,7 +160,7 @@ public:
 
     /// @brief Copy Method for the OmeZarrTileLoader
     /// @return Return a copy of the current OmeZarrTileLoader
-    std::shared_ptr<fl::AbstractTileLoader<fl::DefaultView<DataType>>> copyTileLoader() override 
+    std::shared_ptr<fl::AbstractTileLoader<fl::DefaultView<DataType>>> copyTileLoader() override
     {
         return std::make_shared<OmeZarrTileLoader<DataType>>(this->numberThreads(),this->filePath());
     }
