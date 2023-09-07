@@ -58,7 +58,7 @@ class BioReader{
     public:
         BioReader(const std::string &fNameWithPath, const int num_threads=1);
         ~BioReader();
- 
+
         std::shared_ptr<std::vector<SampleType>> GetTileData(size_t const row, size_t const col, size_t const layer=0, size_t const channel=0, size_t const tstep=0);
         std::shared_ptr<std::vector<SampleType>> GetTileDataByIndex(size_t const tile_index, size_t const channel=0, size_t const tstep=0);
         std::shared_ptr<std::vector<SampleType>> GetVirtualTileData(const Seq& rows, const Seq& cols, const Seq& layers = Seq(0,0), const Seq& channels = Seq(0,0), const Seq& tsteps = Seq(0,0));
@@ -80,11 +80,11 @@ class BioReader{
         std::shared_ptr<std::vector<SampleType>> GetViewRequests(size_t const index_row_pixel_min, size_t const index_row_pixel_max,
                                                                     size_t const index_col_pixel_min, size_t const index_col_pixel_max);
         std::vector< std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>> tile_coordinate_list_;
-        size_t CalcIFDIndex (size_t Z, size_t C, size_t T) const; 
+        size_t CalcIFDIndex (size_t Z, size_t C, size_t T) const;
 };
 
 template <class SampleType>
-BioReader<SampleType>::BioReader(const std::string &fname_with_path, const int num_threads) : 
+BioReader<SampleType>::BioReader(const std::string &fname_with_path, const int num_threads) :
 	tile_loader_(nullptr),
 	ifd_data_ptr_(nullptr),
 	xml_metadata_ptr_(nullptr),
@@ -108,13 +108,13 @@ BioReader<SampleType>::BioReader(const std::string &fname_with_path, const int n
         nz_ = static_cast<size_t>(ceil(1.0*tile_loader_->fullDepth(0)/ tile_loader_->tileDepth(0)));
         nt_ = tile_loader_->numTsteps();
     }
-    else 
+    else
     {
         if (CheckTileStatus(fname_))
         {
             tile_loader_ = std::make_shared<OmeTiffGrayScaleTileLoader<SampleType>>(n_threads_, fname_);
         }
-        else 
+        else
         {
             tile_loader_ = std::make_shared<OmeTiffGrayScaleStripLoader<SampleType>>(n_threads_, fname_);
         }
@@ -133,7 +133,7 @@ BioReader<SampleType>::BioReader(const std::string &fname_with_path, const int n
     options->borderCreatorConstant(0);
 	auto processor_count = std::thread::hardware_concurrency();
 	if (processor_count == 0){processor_count = 1;}
-	if (nc_*nz_*nt_ < fl_cut_off) 
+	if (nc_*nz_*nt_ < fl_cut_off)
 	{
 		options->cacheCapacity(0,0);
 		options->viewAvailable(0,processor_count*2);
@@ -143,7 +143,7 @@ BioReader<SampleType>::BioReader(const std::string &fname_with_path, const int n
 		options->cacheCapacity(0,processor_count*24);
 		options->viewAvailable(0,processor_count*3);
 	}
-    // Create the Fast Loader Graph	
+    // Create the Fast Loader Graph
     fast_loader_ = std::make_unique<fl::FastLoaderGraph<fl::DefaultView<SampleType>>>(std::move(options));
     // Execute the graph
     fast_loader_->executeGraph();
@@ -152,8 +152,8 @@ BioReader<SampleType>::BioReader(const std::string &fname_with_path, const int n
 template <class SampleType>
 BioReader<SampleType>::~BioReader(){
 	xml_metadata_ptr_ = nullptr;
-	ifd_data_ptr_ = nullptr;	
-    fast_loader_->finishRequestingViews(); 
+	ifd_data_ptr_ = nullptr;
+    fast_loader_->finishRequestingViews();
 	fast_loader_->waitForTermination();
 	tile_loader_ = nullptr;
 };
@@ -189,14 +189,14 @@ std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetTileData(size
 	auto vrd = view->radiusDepth();
 	auto view_ptr = view->viewOrigin() + vrd*vw*vh + vrh*vw;
 	auto tile_ptr = tile_data->data();
-	for (size_t i = 0; i < actual_th; ++i) 
-	{	
+	for (size_t i = 0; i < actual_th; ++i)
+	{
 		for(size_t j = 0; j < actual_tw; ++j)
 		{
 			tile_ptr[i*actual_tw+j] = *(view_ptr+i*vw+vrw+j);
 		}
 	}
-	
+
 	view->returnToMemoryManager();
     return tile_data;
 }
@@ -206,10 +206,10 @@ std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetTileData(size
 template <class SampleType>
 std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetTileDataByIndex(size_t const tile_index, size_t const channel, size_t const tstep)
 {
-	size_t num_col_tiles = GetColumnTileCount();	
+	size_t num_col_tiles = GetColumnTileCount();
 	size_t num_row_tiles = GetRowTileCount();
 	size_t layer = tile_index/(num_col_tiles*num_row_tiles);
-	size_t tile_index_2d = tile_index%(num_col_tiles*num_row_tiles); 
+	size_t tile_index_2d = tile_index%(num_col_tiles*num_row_tiles);
 	size_t row = tile_index_2d/num_col_tiles;
 	size_t col = tile_index_2d%num_col_tiles;
 	auto tile_data = GetTileData(row, col, layer, channel, tstep);
@@ -219,7 +219,7 @@ std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetTileDataByInd
 template <class SampleType>
 std::pair<size_t, size_t> BioReader<SampleType>::GetTileContainingPixel(size_t const row_pixel_index, size_t const col_pixel_index) const
 {
-	size_t th = GetTileHeight();	
+	size_t th = GetTileHeight();
 	size_t tw = GetTileWidth();
 	size_t ih = GetImageHeight();
 	size_t iw = GetImageWidth();
@@ -228,13 +228,13 @@ std::pair<size_t, size_t> BioReader<SampleType>::GetTileContainingPixel(size_t c
 	if (row_pixel_index >= ih)
 	{
 		row = (ih-1)/th;
-	} 
-	
-	size_t col = col_pixel_index/tw;	
+	}
+
+	size_t col = col_pixel_index/tw;
 	if (col_pixel_index >= iw)
 	{
 		col = (iw-1)/tw;
-	} 
+	}
 
 	return std::make_pair(row, col);
 }
@@ -244,7 +244,7 @@ std::string BioReader<SampleType>::GetMetaDataValue(const std::string &metadata_
 {
 	std::string value = "" ;
 	// if (xml_metadata_ptr_ == nullptr){
-	// 	ParseMetadata();		
+	// 	ParseMetadata();
 	// }
 	try {
 		value = xml_metadata_ptr_->at(metadata_key);
@@ -256,15 +256,15 @@ std::string BioReader<SampleType>::GetMetaDataValue(const std::string &metadata_
 }
 
 template <class SampleType>
-void BioReader<SampleType>::ParseMetadata() 
+void BioReader<SampleType>::ParseMetadata()
 {
     if(is_zarr_) { ParseZarrMetadata();}
     else {ParseTiffMetadata();}
 }
 
 template <class SampleType>
-void BioReader<SampleType>::ParseZarrMetadata() 
-{	
+void BioReader<SampleType>::ParseZarrMetadata()
+{
 	std::unique_ptr zarr_ptr = std::make_unique<z5::filesystem::handle::File>(fname_.c_str());
 	nlohmann::json attributes;
 	z5::readAttributes(*zarr_ptr, attributes);
@@ -287,7 +287,7 @@ void BioReader<SampleType>::ParseZarrMetadata()
 		}
 	// get channel info -ToDo
 
-	// read structured annotaion
+	// read structured annotation
 		pugi::xml_node annotion_list = doc.child("OME").child("StructuredAnnotations");
 		for(const pugi::xml_node &annotation : annotion_list){
 			auto key = annotation.child("Value").child("OriginalMetadata").child("Key").child_value();
@@ -298,10 +298,10 @@ void BioReader<SampleType>::ParseZarrMetadata()
 }
 
 template <class SampleType>
-void BioReader<SampleType>::ParseTiffMetadata() 
-{	
+void BioReader<SampleType>::ParseTiffMetadata()
+{
 	TIFF *tiff_ = TIFFOpen(fname_.c_str(), "r");
-	if (tiff_ != nullptr) 
+	if (tiff_ != nullptr)
 	{
 		char* infobuf;
 		TIFFGetField(tiff_, TIFFTAG_IMAGEDESCRIPTION , &infobuf);
@@ -315,7 +315,7 @@ void BioReader<SampleType>::ParseTiffMetadata()
 			for (const pugi::xml_attribute &attr: pixel.attributes()){
 				xml_metadata_ptr_->emplace(attr.name(), attr.value());
 			}
-		
+
 
 			auto it = xml_metadata_ptr_->find("SizeC");
 			if (it != xml_metadata_ptr_->end()) nc_ = stoi(it->second);
@@ -355,14 +355,14 @@ void BioReader<SampleType>::ParseTiffMetadata()
 					else if (strcmp(attr.name(),"FirstT") == 0) {t = atoi(attr.value());}
 					else if (strcmp(attr.name(),"IFD") == 0) {ifd = atoi(attr.value());}
 					else {continue;}
-				} 
+				}
 
 				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd;
 			}
 
 			// get channel info
 
-			// read structured annotaion
+			// read structured annotation
 			pugi::xml_node annotion_list = doc.child("OME").child("StructuredAnnotations");
 			for(const pugi::xml_node &annotation : annotion_list){
 				auto key = annotation.child("Value").child("OriginalMetadata").child("Key").child_value();
@@ -372,20 +372,20 @@ void BioReader<SampleType>::ParseTiffMetadata()
 
 		}
 		TIFFClose(tiff_);
-	
-	} else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }	
+
+	} else { throw (std::runtime_error("Tile Loader ERROR: The file can not be opened.")); }
 }
 
-template <class SampleType> 
+template <class SampleType>
 size_t BioReader<SampleType>::AdjustStride (size_t start_pos, size_t current_pos, size_t stride_val) const
 {
 	if (stride_val == 0) return current_pos; // guard against div by 0
 
 	size_t tmp = current_pos-start_pos;
-	if (tmp%stride_val == 0) 
+	if (tmp%stride_val == 0)
 	{
 		return current_pos; // no adjustment needed
-	} else 
+	} else
 	{
 		return ((tmp/stride_val)+1)*stride_val; // move to the next eligible position
 	}
@@ -402,7 +402,7 @@ short BioReader<SampleType>::GetChannelCount() const
 	return nc_;
 }
 
-template <class SampleType> 
+template <class SampleType>
 size_t BioReader<SampleType>::GetTstepCount() const
 {
 	return nt_;
@@ -454,10 +454,10 @@ std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetViewRequests(
                                                                     size_t const index_col_pixel_min, size_t const index_col_pixel_max)
 {
 
-	// Convention 
+	// Convention
 	// rows are X coordinate (increasing from top to bottom)
 	// cols are Y coordinate (increasing from left to right)
-	// we need to transform from Local Tile Coordinate to Global Pixel Coordiate to Virtual Tile Coordinate
+	// we need to transform from Local Tile Coordinate to Global Pixel Coordinate to Virtual Tile Coordinate
 
 	Seq rows = Seq(index_row_pixel_min, index_row_pixel_max);
 	Seq cols = Seq(index_col_pixel_min, index_col_pixel_max);
@@ -493,10 +493,10 @@ std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetViewRequests(
 template <class SampleType>
 std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetVirtualTileData(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps)
 {
-	// Convention 
+	// Convention
 	// rows are X coordinate (increasing from top to bottom)
 	// cols are Y coordinate (increasing from left to right)
-	// we need to transform from Local Tile Coordinate to Global Pixel Coordiate to Virtual Tile Coordinate
+	// we need to transform from Local Tile Coordinate to Global Pixel Coordinate to Virtual Tile Coordinate
 
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);
@@ -534,7 +534,7 @@ std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetVirtualTileDa
 		size_t t_offset = virtual_tstep*vtw*vth*vtd*num_channels;
 		size_t virtual_ch = 0;
 		for (auto l = index_true_min_channel; l<=index_true_max_channel; l=l+channels.Step())
-		{	
+		{
 			size_t ch_offset = virtual_ch*vtw*vth*vtd;
 			size_t virtual_z = 0;
 			for (auto k = index_true_min_layer; k<=index_true_max_layer; k=k+layers.Step())
@@ -545,7 +545,7 @@ std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetVirtualTileDa
 				{
 				//	#pragma omp parallel for
 					for (auto j = min_col_index; j <= max_col_index; ++j)
-					{	
+					{
 						auto layer = CalcIFDIndex(k,l,m);
 
 						fast_loader_->requestView(i, j, layer, 0);
@@ -570,7 +570,7 @@ std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetVirtualTileDa
 	if (total_views < fl_cut_off) {pool_worker = processor_count;}
 	else {pool_worker = 3*processor_count;}
 	thread_pool pool(pool_worker);
-	pool.parallelize_loop(0, total_views, 
+	pool.parallelize_loop(0, total_views,
 							[&rows, &cols, virtual_tile_data, &ifd_offset_lookup, this](const size_t &a, const size_t &b)
 							{
 								for (size_t i = a; i < b; i++)
@@ -593,10 +593,10 @@ template <class SampleType>
 std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetVirtualTileDataStrided(const Seq& rows, const Seq& cols, const Seq& layers, const Seq& channels, const Seq& tsteps)
 {
 
-	// Convention 
+	// Convention
 	// rows are X coordinate (increasing from top to bottom)
 	// cols are Y coordinate (increasing from left to right)
-	// we need to transform from Local Tile Coordinate to Global Pixel Coordiate to Virtual Tile Coordinate
+	// we need to transform from Local Tile Coordinate to Global Pixel Coordinate to Virtual Tile Coordinate
 
 	auto ih = tile_loader_->fullHeight(0);
 	auto iw = tile_loader_->fullWidth(0);
@@ -626,20 +626,20 @@ std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetVirtualTileDa
 	folly::resizeWithoutInitialization(*virtual_tile_data, vtw * vth * vtd * num_channels * num_tsteps);
 
 	size_t virtual_tstep = 0;
-	size_t total_views = 0; 
+	size_t total_views = 0;
 	std::map<size_t, size_t> ifd_offset_lookup;
 	for (auto m = index_true_min_tstep; m<=index_true_max_tstep; m=m+tsteps.Step())
 	{
 		size_t t_offset = virtual_tstep*vtw*vth*vtd*num_channels;
 		size_t virtual_ch = 0;
 		for (auto l = index_true_min_channel; l<=index_true_max_channel; l=l+channels.Step())
-		{	
+		{
 			size_t ch_offset = virtual_ch*vtw*vth*vtd;
 			size_t virtual_z = 0;
 			for (auto k = index_true_min_layer; k<=index_true_max_layer; k=k+layers.Step())
 			{
 				size_t z_offset = virtual_z*vtw*vth;
-				
+
 				for (auto i = min_row_index; i <= max_row_index; ++i){
 					for (auto j = min_col_index; j <= max_col_index; ++j)
 					{
@@ -665,7 +665,7 @@ std::shared_ptr<std::vector<SampleType>> BioReader<SampleType>::GetVirtualTileDa
 }
 
 
-template <class SampleType> 
+template <class SampleType>
 size_t BioReader<SampleType>::CalcIFDIndex (size_t z, size_t c, size_t t) const
 {
     if (is_zarr_) {return t*nz_*nc_ + c*nz_ + z;}
@@ -700,7 +700,7 @@ size_t BioReader<SampleType>::CalcIFDIndex (size_t z, size_t c, size_t t) const
 				ifd_dir = nc_*nz_*t + nc_*z + c + ifd_offset_;
 				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
 				break;
-			
+
 			default:
 				ifd_dir = nz_*nt_*c + nz_*t + z + ifd_offset_;
 				ifd_data_ptr_->at(t*(nz_*nc_) + c*nz_ + z) = ifd_dir;
@@ -708,7 +708,7 @@ size_t BioReader<SampleType>::CalcIFDIndex (size_t z, size_t c, size_t t) const
 		}
 
 	}
-	else 
+	else
 	{
 		if (dim_order_ == 1) {ifd_dir = nz_*nt_*c + nz_*t + z + ifd_offset_;}
 		else if (dim_order_ == 2) {ifd_dir = nz_*nc_*t + nz_*c + z + ifd_offset_;}
@@ -747,7 +747,7 @@ void BioReader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& cols, 
 		// virtual_x = global_x - index_row_pixel_min;
 		// initial_global_y = j*tw + initial_local_y;
 		// initial_virtual_y = initial_global_y - index_col_pixel_min;
-		size_t initial_local_x = rows.Start() > i*th ? rows.Start()-i*th : 0;	
+		size_t initial_local_x = rows.Start() > i*th ? rows.Start()-i*th : 0;
 		// adjust for row stride
 		if (rows.Step()!=1)
 		{
@@ -762,7 +762,7 @@ void BioReader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& cols, 
 		{
 			size_t initial_global_y = j*tw + initial_local_y;
 			initial_global_y = AdjustStride(cols.Start(), initial_global_y, cols.Step());
-			initial_local_y = initial_global_y - j*tw;		
+			initial_local_y = initial_global_y - j*tw;
 		}
 
 		size_t end_local_y = index_true_col_pixel_max < (j+1)*tw ? index_true_col_pixel_max-j*tw : tw-1;
@@ -782,10 +782,10 @@ void BioReader<SampleType>::CopyToVirtualTile(const Seq& rows, const Seq& cols, 
 		   // #pragma omp parallel for
 			for (size_t local_x=initial_local_x; local_x<end_local_x+1; ++local_x){
 				size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();
-				std::copy(std::execution::par_unseq, view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+offset+virtual_x*vtw+initial_virtual_y);					
+				std::copy(std::execution::par_unseq, view_ptr+local_x*vw+vrw+initial_local_y, view_ptr+local_x*vw+vrw+end_local_y+1,virtual_tile_data_begin+offset+virtual_x*vtw+initial_virtual_y);
 			}
 		}
-		else 
+		else
 		{
 			for (size_t local_x=initial_local_x; local_x<=end_local_x; ++local_x){
 				size_t virtual_x = (i*th + local_x - rows.Start())/rows.Step();

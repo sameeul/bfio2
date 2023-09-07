@@ -5,6 +5,6 @@ Image IO library for various formats
 ## Overview
 placeholder
 
-## Getting started 
+## Getting started
 
 placeholder

@@ -22,8 +22,8 @@ class BfioTileLoader : public fl::AbstractTileLoader<fl::DefaultView<DataType>> 
 public:
   BfioTileLoader(std::string_view const &name, size_t numberThreads, std::string const &filePath)
       : fl::AbstractTileLoader<fl::DefaultView<DataType>>(name, numberThreads, filePath) {}
-  
-  [[nodiscard]] virtual size_t numTsteps() const {  return 1;}  
+
+  [[nodiscard]] virtual size_t numTsteps() const {  return 1;}
 };
 
 #endif //BFIO_LOADER_H

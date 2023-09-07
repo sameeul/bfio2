@@ -21,13 +21,13 @@
 
 bool CheckTileStatus(const std::string &fname){
 	TIFF *tiff_ = TIFFOpen(fname.c_str(), "r");
-	if (tiff_ != nullptr) 
+	if (tiff_ != nullptr)
 	{
-		if (TIFFIsTiled(tiff_) == 0) 
-		{ 
+		if (TIFFIsTiled(tiff_) == 0)
+		{
 			TIFFClose(tiff_);
 			return false;
-			} else 
+			} else
 			{
 			TIFFClose(tiff_);
 			return true;
@@ -98,7 +98,7 @@ std::string GetZarrType(const std::string &fname){
     std::unique_ptr<z5::filesystem::handle::File> zarr_ptr = std::make_unique<z5::filesystem::handle::File>(fname.c_str());
     nlohmann::json attributes;
     z5::readAttributes(*zarr_ptr, attributes);
-    
+
     std::string metadata = attributes["metadata"].dump();
     std::regex type_regex("Type=\\\\\"(\\w+)");
     std::smatch matches;
@@ -116,5 +116,5 @@ std::string GetZarrType(const std::string &fname){
         else {return "uint16_t";}
     }
     return "uint16_t";
-    
+
 }

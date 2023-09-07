@@ -188,7 +188,7 @@ class OmeTiffGrayScaleStripLoader : public BfioTileLoader<DataType> {
   /// @param level Tiff level [not used]
   /// @return Full Depth
   [[nodiscard]] size_t fullDepth([[maybe_unused]] size_t level) const override { return full_depth_; }
-  
+
   /// @brief Tiff tile width
   /// @param level Tiff level [not used]
   /// @return Tile width

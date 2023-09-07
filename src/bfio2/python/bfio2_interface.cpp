@@ -12,7 +12,7 @@ inline py::array_t<SampleType> as_pyarray_shared_5d(std::shared_ptr<std::vector<
     auto data = seq_ptr->data();
     auto capsule = py::capsule(new auto (seq_ptr), [](void *p) {delete reinterpret_cast<decltype(seq_ptr)*>(p);});
     return py::array(size, data, capsule).reshape({num_tsteps, num_channels, num_layers, num_rows, num_cols}).squeeze();
- 
+
 }
 
 
@@ -74,7 +74,7 @@ py::array_t<SampleType> get_tile_data_2d_by_index_channel(BioReader<SampleType>&
     auto ih = tl.GetImageHeight();
     auto tw = tl.GetTileWidth();
     auto th = tl.GetTileHeight();
-    size_t num_col_tiles = tl.GetColumnTileCount();	
+    size_t num_col_tiles = tl.GetColumnTileCount();
     size_t row = index_global_tile/num_col_tiles;
     size_t col = index_global_tile%num_col_tiles;
     auto actual_tw = iw > (col+1)*tw -1 ? tw : iw - col*tw;
@@ -111,7 +111,7 @@ PYBIND11_MODULE(libbfio2, m) {
   m.def("get_tiff_type", &GetTiffType);
   m.def("get_zarr_type", &GetZarrType);
 
-  py::class_<Seq, std::shared_ptr<Seq>>(m, "Seq")  
+  py::class_<Seq, std::shared_ptr<Seq>>(m, "Seq")
     .def(py::init<const size_t, const size_t, const size_t>());
 
     makeBinding(uint8_t, BioReader, "BioReaderUint8");
